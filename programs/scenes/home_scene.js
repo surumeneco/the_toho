@@ -66,6 +66,10 @@ phina.define("Home_scene",
       HP.fill = White;
       HP.fontSize = font_size;
       HP.setPosition(CENTER_W, text_y);
+      if (player.体力 <= 20)
+      {
+        HP.fill = Red;
+      }
       text_y += text_interval;
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -76,6 +80,10 @@ phina.define("Home_scene",
       SP.fill = White;
       SP.fontSize = font_size;
       SP.setPosition(CENTER_W, text_y);
+      if (player.気力 < (5 + Math.floor(player.移動距離 / 10000)) * 2)
+      {
+        SP.fill = Red;
+      }
       text_y += text_interval;
       /*-----=-----=-----=-----=-----=-----*/
 

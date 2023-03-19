@@ -414,6 +414,12 @@ phina.define("Craft_scene",
 
 
       this.SP.text = "気力：" + player.気力;
+      this.SP.fill = White;
+      if (player.気力 < (5 + Math.floor(player.移動距離 / 10000)) * 2)
+      {
+        this.SP.fill = Red;
+        SoundManager.play("alert");
+      }
     }
     /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
   }

@@ -364,6 +364,8 @@ phina.define("Battle_scene",
       /*-----=-----=-----=-----=-----=-----*/
       this.set_attacks_pos();
 
+
+
       /*-----=-----=-----=-----=-----=-----
           戦闘フェイズ処理
         -----=-----=-----=-----=-----=-----*/
@@ -447,6 +449,12 @@ phina.define("Battle_scene",
 
           player.体力 -= total;
           this.player_HP.text = "残り体力：" + player.体力;
+          this.player_HP.fill = White;
+          if (player.体力 <= 20)
+          {
+            this.player_HP.fill = Red;
+            SoundManager.play("alert");
+          }
           SoundManager.play("damage");
           this.戦闘フェイズ = "プレイヤーへのダメージを表示";
           break;

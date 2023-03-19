@@ -87,6 +87,11 @@ phina.define("Sleep_scene",
       SP.fill = White;
       SP.fontSize = font_size;
       SP.setPosition(CENTER_W, text_y);
+      if (player.気力 < (5 + Math.floor(player.移動距離 / 10000)) * 2)
+      {
+        SP.fill = Red;
+        SoundManager.play("alert");
+      }
       text_y += text_interval;
       /*-----=-----=-----=-----=-----=-----*/
 

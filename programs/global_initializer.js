@@ -23,7 +23,8 @@ let path = "../";
 // const version = "0.6.0"; // 2023/03/16 18:55
 // const version = "1.0.0"; // 2023/03/16 23:30
 // const version = "1.1.0"; // 2023/03/17 24:40
-const version = "1.1.1"; // 2023/03/18 14:25
+// const version = "1.1.1"; // 2023/03/18 14:25
+const version = "1.1.2";
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -52,7 +53,7 @@ var pointer_move_x = 0;
 var pointer_move_y = 0;
 
 //戦闘発生確率
-const battle_rate = 15;
+const battle_rate = 20;
 
 //武器壊れる確率
 const broken_rate = 5;
@@ -101,7 +102,8 @@ var ASSETS = {
     "eat": path + "sounds/eat.mp3",
     "backhome": path + "sounds/backhome.mp3",
     "gameover": path + "sounds/gameover.mp3",
-    "newgame": path + "sounds/newgame.mp3"
+    "newgame": path + "sounds/newgame.mp3",
+    "alert": path + "sounds/alert.mp3"
   }
 }
 
