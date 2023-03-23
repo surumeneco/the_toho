@@ -13,6 +13,7 @@ phina.define("Craft_scene",
       this.width = SCREEN_W;
       this.height = SCREEN_H;
       this.is_sliding = false;
+      this.is_alerted = false;
 
       //thisが別のものを指す時に使えるように
       var self = this;
@@ -418,7 +419,11 @@ phina.define("Craft_scene",
       if (player.気力 < (5 + Math.floor(player.移動距離 / 10000)) * 2)
       {
         this.SP.fill = Red;
-        SoundManager.play("alert");
+        if (!this.is_alerted)
+        {
+          SoundManager.play("alert");
+          this.is_alerted = true;
+        }
       }
     }
     /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/

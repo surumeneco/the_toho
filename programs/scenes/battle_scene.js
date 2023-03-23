@@ -308,13 +308,17 @@ phina.define("Battle_scene",
             case "敵の攻撃": break;
             case "プレイヤーへのダメージを表示":
               SoundManager.play("select");
-              this.戦闘フェイズ = "プレイヤーの攻撃";
-              this.notice.text = "攻撃を選んでください";
               if (player.体力 <= 0)
               {
-                SoundManager.play("gameover");
-                this.exit("ゲームオーバー");
+                this.戦闘フェイズ = "ゲームオーバー";
               }
+              else
+              {
+                this.戦闘フェイズ = "プレイヤーの攻撃";
+                this.notice.text = "攻撃を選んでください";
+              }
+              break;
+            case "ゲームオーバー":
               break;
           }
         }
@@ -458,7 +462,12 @@ phina.define("Battle_scene",
           SoundManager.play("damage");
           this.戦闘フェイズ = "プレイヤーへのダメージを表示";
           break;
+
         case "プレイヤーへのダメージを表示":
+          break;
+
+        case "ゲームオーバー":
+          SoundManager.play("gameover");
           break;
       }
       /*-----=-----=-----=-----=-----=-----*/
