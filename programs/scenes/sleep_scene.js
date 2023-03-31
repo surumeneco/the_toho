@@ -132,6 +132,8 @@ phina.define("Sleep_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      bgm_check(app);
+
       if (player.気力 < 0)
       {
         SoundManager.play("gameover");

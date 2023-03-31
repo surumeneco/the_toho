@@ -25,7 +25,8 @@ let path = "../";
 // const version = "1.1.0"; // 2023/03/17 24:40
 // const version = "1.1.1"; // 2023/03/18 14:25
 // const version = "1.1.2"; // 2023/03/19 22:50
-const version = "1.1.3"; // 2023/03/24 24:20
+// const version = "1.1.3"; // 2023/03/24 24:20
+const version = "1.2.0";
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -72,6 +73,12 @@ var now_scene = "ホーム";
 var is_reload = false;
 var now_enemy;
 var current_recipe_page = 0;
+var story_num = 0;
+var now_bgm;
+var now_bgm_time = 0;
+var bgm_starting_time = 0;
+var bgm_playing_time = 0;
+var now_bgm_is_loaded = false;
 
 //ここからアイテムデータ読み込み
 const foods_data = new Array();
@@ -81,6 +88,9 @@ const materials_data = new Array();
 const recipes_data = new Array(); //[ 必要道具, [レシピ, レシピ] ]
 const enemies_data = new Array();
 
+//ストーリーデータ読み込み
+const story_texts = new Array();
+
 //ロード完了変数
 var foods_is_loaded = loading(path + "datas/foods.json", load_JSON, load_foods);
 var weapons_is_loaded = loading(path + "datas/weapons.json", load_JSON, load_weapons);
@@ -88,10 +98,24 @@ var tools_is_loaded = loading(path + "datas/tools.json", load_JSON, load_tools);
 var materials_is_loaded = loading(path + "datas/materials.json", load_JSON, load_materials);
 var recipes_is_loaded = loading(path + "datas/recipes.json", load_JSON, load_recipes);
 var enemies_is_loaded = loading(path + "datas/enemies.json", load_JSON, load_enemies);
+var stories_is_loaded = loading(path + "datas/story.json", load_JSON, load_stories);
+
+const bgms = ["8bit26", "acoustic30", "acoustic31", "acoustic36", "acoustic44", "acoustic49", "acoustic50", "acoustic51", "ethnic30", "piano39"];
 
 var ASSETS = {
   sound:
   {
+    "8bit26": path + "bgms/maou_bgm_8bit26.mp3",
+    "acoustic30": path + "bgms/maou_bgm_acoustic30.mp3",
+    "acoustic31": path + "bgms/maou_bgm_acoustic31.mp3",
+    "acoustic36": path + "bgms/maou_bgm_acoustic36.mp3",
+    "acoustic44": path + "bgms/maou_bgm_acoustic44.mp3",
+    "acoustic49": path + "bgms/maou_bgm_acoustic49.mp3",
+    "acoustic50": path + "bgms/maou_bgm_acoustic50.mp3",
+    "acoustic51": path + "bgms/maou_bgm_acoustic51.mp3",
+    "cyber31": path + "bgms/maou_bgm_cyber31.mp3",
+    "ethnic30": path + "bgms/maou_bgm_ethnic30.mp3",
+    "piano39": path + "bgms/maou_bgm_piano39.mp3",
     "start": path + "sounds/start.mp3",
     "select": path + "sounds/select.mp3",
     "battle": path + "sounds/battle.mp3",
@@ -104,9 +128,39 @@ var ASSETS = {
     "backhome": path + "sounds/backhome.mp3",
     "gameover": path + "sounds/gameover.mp3",
     "newgame": path + "sounds/newgame.mp3",
-    "alert": path + "sounds/alert.mp3"
+    "alert": path + "sounds/alert.mp3",
+    "story": path + "sounds/story.mp3"
   }
 }
 
+/*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+
+
+
+/*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    関数定義
+  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+function bgm_check(app)
+{
+  if ((app.currentTime - bgm_starting_time > now_bgm_time * 1000) && now_bgm_is_loaded)
+  {
+    SoundManager.stopMusic(1);
+    now_bgm_is_loaded = false;
+  }
+  if (SoundManager.currentMusic == null)
+  {
+    bgm_starting_time = app.currentTime;
+    let new_bgm = bgms[Math.floor(Math.random() * bgms.length)];
+    now_bgm = new Audio();
+    now_bgm.src = path + "bgms/maou_bgm_" + new_bgm + ".mp3";
+    now_bgm.load();
+    now_bgm.addEventListener('loadedmetadata', function (e)
+    {
+      now_bgm_time = now_bgm.duration - 5;
+      now_bgm_is_loaded = true;
+    });
+    SoundManager.playMusic(new_bgm, 1, false);
+  }
+}
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 

@@ -289,6 +289,8 @@ phina.define("Craft_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      bgm_check(app);
+
       var self = this;
 
       /*-----=-----=-----=-----=-----=-----
@@ -383,6 +385,9 @@ phina.define("Craft_scene",
       this.go_right.fontColor = lightGray;
       this.go_right.fill = "#1E1E1E";
       this.go_right.onpointend = function () { };
+
+      if (current_recipe_page < 0) current_recipe_page = 0;
+      if (current_recipe_page >= this.制作可能レシピ.length) current_recipe_page = this.制作可能レシピ.length - 1;
 
       if (current_recipe_page > 0)
       {

@@ -40,6 +40,40 @@ phina.define("Title_scene",
       /*-----=-----=-----=-----=-----=-----
           テキスト位置設定
         -----=-----=-----=-----=-----=-----*/
+      var font_size = 32;
+      var text_y = SCREEN_H - 25;
+      /*-----=-----=-----=-----=-----=-----*/
+
+      /*-----=-----=-----=-----=-----=-----
+          クレジット表示
+        -----=-----=-----=-----=-----=-----*/
+      var bgm_credit = Label("BGM:魔王魂　").addChildTo(this);
+      bgm_credit.fill = White;
+      bgm_credit.fontSize = font_size;
+      bgm_credit.align = "right";
+      bgm_credit.baseline = "bottom";
+      bgm_credit.setPosition(SCREEN_W - 25, text_y - font_size * 2.6);
+      /*-----=-----=-----=-----=-----=-----*/
+      var se_credit = Label("SE:効果音ラボ　").addChildTo(this);
+      se_credit.fill = White;
+      se_credit.fontSize = font_size;
+      se_credit.align = "right";
+      se_credit.baseline = "bottom";
+      se_credit.setPosition(SCREEN_W - 25, text_y - font_size * 1.3);
+      /*-----=-----=-----=-----=-----=-----*/
+      var my_credit = Label("制作:スルメねこ。").addChildTo(this);
+      my_credit.fill = White;
+      my_credit.fontSize = font_size;
+      my_credit.align = "right";
+      my_credit.baseline = "bottom";
+      my_credit.setPosition(SCREEN_W - 25, text_y);
+      /*-----=-----=-----=-----=-----=-----*/
+
+
+
+      /*-----=-----=-----=-----=-----=-----
+          テキスト位置設定
+        -----=-----=-----=-----=-----=-----*/
       var font_size = 64;
       var text_y = 500;
       this.text_floating_width = 20;
@@ -251,6 +285,8 @@ phina.define("Title_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      bgm_check(app);
+
       this.text_floating_fase += Math.PI / app.fps / 2;
       this.text_floating_fase %= Math.PI * 2;
       this.notice.setPosition(CENTER_W, CENTER_H + this.text_floating_width * Math.sin(this.text_floating_fase));

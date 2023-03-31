@@ -68,6 +68,11 @@ phina.main(function ()
           },
 
           {
+            label: "ストーリー",
+            className: "Story_scene"
+          },
+
+          {
             label: "ゲームオーバー",
             className: "Gameover_scene"
           },

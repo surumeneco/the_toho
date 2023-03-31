@@ -221,6 +221,10 @@ phina.define("Battle_scene",
           プレイヤーの体力表示
         -----=-----=-----=-----=-----=-----*/
       this.player_HP = Label("残り体力：" + player.体力).addChildTo(this);
+      if (this.敵.名前 == "終焉の龍")
+      {
+        this.player_HP.text = "残り気力：" + player.気力;
+      }
       this.player_HP.fill = White;
       this.player_HP.fontSize = font_size;
       this.player_HP.align = "left";
@@ -308,14 +312,29 @@ phina.define("Battle_scene",
             case "敵の攻撃": break;
             case "プレイヤーへのダメージを表示":
               SoundManager.play("select");
-              if (player.体力 <= 0)
+              if (this.敵.名前 == "終焉の龍")
               {
-                this.戦闘フェイズ = "ゲームオーバー";
+                if (player.気力 < 0)
+                {
+                  this.戦闘フェイズ = "ゲームオーバー";
+                }
+                else
+                {
+                  this.戦闘フェイズ = "プレイヤーの攻撃";
+                  this.notice.text = "攻撃を選んでください";
+                }
               }
               else
               {
-                this.戦闘フェイズ = "プレイヤーの攻撃";
-                this.notice.text = "攻撃を選んでください";
+                if (player.体力 <= 0)
+                {
+                  this.戦闘フェイズ = "ゲームオーバー";
+                }
+                else
+                {
+                  this.戦闘フェイズ = "プレイヤーの攻撃";
+                  this.notice.text = "攻撃を選んでください";
+                }
               }
               break;
             case "ゲームオーバー":
@@ -335,6 +354,8 @@ phina.define("Battle_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      bgm_check(app);
+
       /*-----=-----=-----=-----=-----=-----
           スクロール位置処理
         -----=-----=-----=-----=-----=-----*/
@@ -435,8 +456,16 @@ phina.define("Battle_scene",
           if (this.敵.体力 <= 0)
           {
             now_enemy = this.敵;
-            SoundManager.play("win");
-            this.exit("勝利");
+            if (this.敵.名前 == "女の子……？")
+            {
+              SoundManager.play("story");
+              this.exit("ストーリー");
+            }
+            else
+            {
+              SoundManager.play("win");
+              this.exit("勝利");
+            }
           }
           this.ダメージ = this.敵.攻撃力.roll();
           var total = 0;
@@ -451,13 +480,27 @@ phina.define("Battle_scene",
           text += ")を受けた";
           this.notice.text = text;
 
-          player.体力 -= total;
-          this.player_HP.text = "残り体力：" + player.体力;
-          this.player_HP.fill = White;
-          if (player.体力 <= 20)
+          if (this.敵.名前 == "終焉の龍")
           {
-            this.player_HP.fill = Red;
-            SoundManager.play("alert");
+            player.気力 -= total;
+            this.player_HP.text = "残り気力：" + player.気力;
+            this.player_HP.fill = White;
+            if (player.気力 <= 50)
+            {
+              this.player_HP.fill = Red;
+              SoundManager.play("alert");
+            }
+          }
+          else
+          {
+            player.体力 -= total;
+            this.player_HP.text = "残り体力：" + player.体力;
+            this.player_HP.fill = White;
+            if (player.体力 <= 20)
+            {
+              this.player_HP.fill = Red;
+              SoundManager.play("alert");
+            }
           }
           SoundManager.play("damage");
           this.戦闘フェイズ = "プレイヤーへのダメージを表示";
@@ -468,6 +511,7 @@ phina.define("Battle_scene",
 
         case "ゲームオーバー":
           SoundManager.play("gameover");
+          this.exit("ゲームオーバー");
           break;
       }
       /*-----=-----=-----=-----=-----=-----*/

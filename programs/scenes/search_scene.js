@@ -36,6 +36,8 @@ phina.define("Search_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      bgm_check(app);
+
       player.気力 -= 5 + Math.floor(player.移動距離 / 10000);
       player.移動距離 += 100;
       if (player.気力 < 0)
