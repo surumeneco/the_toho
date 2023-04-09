@@ -39,6 +39,7 @@ phina.define("Sleep_scene",
       {
         player.日数++;
       }
+      set_cookies();
 
 
 

@@ -300,6 +300,7 @@ phina.define("Recipe_window",
               player.get_item(recipe.必要素材[i][0], -recipe.必要素材[i][1]);
             }
             player.気力 -= recipe.制作気力;
+            set_cookies();
             SoundManager.play("make");
             is_reload = true;
           }
@@ -325,7 +326,10 @@ phina.define("Recipe_window",
         let now_y = y - this.ウィンドウ.height / 2 + this.行間;
 
         this.product.setPosition(now_x, now_y);
-        this.having.setPosition(x + this.ウィンドウ.width / 2 - this.行間, now_y);
+        this.having.setPosition(
+          x + this.ウィンドウ.width / 2 - this.行間,
+          y + this.ウィンドウ.height / 2 - this.行間 - this.make.height / 2 - this.font_size * 2 - this.行間
+        );
         now_y += this.行間 + this.font_size;
 
         this.need_label.setPosition(now_x, now_y);

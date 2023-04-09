@@ -26,7 +26,8 @@ let path = "../";
 // const version = "1.1.1"; // 2023/03/18 14:25
 // const version = "1.1.2"; // 2023/03/19 22:50
 // const version = "1.1.3"; // 2023/03/24 24:20
-const version = "1.2.0"; // 2023/3/31 26:45
+// const version = "1.2.0"; // 2023/03/31 26:45
+const version = "1.3.0"; // 2023/04/09 14:45
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -43,6 +44,10 @@ const SCREEN_H = 1920;
 //使いやすいように
 const CENTER_W = SCREEN_W / 2;
 const CENTER_H = SCREEN_H / 2;
+
+//cookie
+var load_type = window.performance.navigation.type;
+const cookie = document.cookie;
 
 //音量設定
 var music_volume = 25;
@@ -69,7 +74,7 @@ const get_rate = 50;
 var player = Player();
 
 //シーン管理用
-var now_scene = "ホーム";
+var now_scene = "タイトル";
 var is_reload = false;
 var now_enemy;
 var current_recipe_page = 0;
@@ -100,8 +105,10 @@ var recipes_is_loaded = loading(path + "datas/recipes.json", load_JSON, load_rec
 var enemies_is_loaded = loading(path + "datas/enemies.json", load_JSON, load_enemies);
 var stories_is_loaded = loading(path + "datas/story.json", load_JSON, load_stories);
 
+//BGM一覧
 const bgms = ["8bit26", "acoustic30", "acoustic31", "acoustic36", "acoustic44", "acoustic49", "acoustic50", "acoustic51", "ethnic30", "piano39"];
 
+//アセット設定
 var ASSETS = {
   sound:
   {
@@ -140,6 +147,8 @@ var ASSETS = {
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     関数定義
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+
+//BGMの再生処理
 function bgm_check(app)
 {
   if ((app.currentTime - bgm_starting_time > now_bgm_time * 1000) && now_bgm_is_loaded)
@@ -161,6 +170,66 @@ function bgm_check(app)
     });
     SoundManager.playMusic(new_bgm, 1, false);
   }
+}
+
+//Cookieの書き込み
+function set_cookies()
+{
+  let データ = "";
+
+  let 保存日数 = 30;
+  let 保存期間 = new Date();
+  保存期間.setTime(保存期間.getTime() + 1000 * 60 * 60 * 24 * 保存日数);
+  保存期間.toUTCString();
+
+  データ = "storydata=" + story_num + ";";
+  データ += "expires = " + 保存期間 + ";";
+  document.cookie = データ;
+
+  データ = "playingdata=" + JSON.stringify(player) + ";";
+  データ += "expires = " + 保存期間 + ";";
+  document.cookie = データ;
+}
+
+//Cookieの削除
+function delete_cookies()
+{
+  データ = "storydata=;max-age=0";
+  document.cookie = データ;
+  データ = "playingdata=;max-age=0";
+  document.cookie = データ;
+}
+
+//Cookieの読み込み
+function get_cookies()
+{
+  if (cookie != "")
+  {
+    let data = cookie.split(";");
+    let splited_data;
+
+    splited_data = data[0].split("=");
+    story_num = splited_data[1];
+
+    splited_data = data[1].split("=");
+    let playing_data = JSON.parse(splited_data[1]);
+    player.set_data(playing_data);
+  }
+}
+
+//リロード時データ読み込み
+function reload_check(app)
+{
+  if (window.performance)
+  {
+    if (load_type == 1)
+    {
+      get_cookies();
+      load_type = -1;
+      return true;
+    }
+  }
+  return false;
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 

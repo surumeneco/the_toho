@@ -21,6 +21,9 @@ phina.define("Craft_scene",
       //背景色
       this.backgroundColor = Black;
 
+      //現在のシーン
+      now_scene = "制作";
+
       this.必要道具所持 = new Array();
       this.制作可能レシピ = new Array();
       this.表示レシピ = new Array();
@@ -181,6 +184,7 @@ phina.define("Craft_scene",
         .setPosition(buttons_x, buttons_y)
         .onpointend = function ()
         {
+          set_cookies();
           SoundManager.play("backhome");
           self.exit("ホーム");
         };
@@ -333,7 +337,6 @@ phina.define("Craft_scene",
           current_recipe_page += increase;
           if (current_recipe_page < 0) current_recipe_page = 0;
           if (current_recipe_page >= this.制作可能レシピ.length) current_recipe_page = this.制作可能レシピ.length - 1;
-          now_scene = "制作";
           this.exit("リフレッシュ");
         }
         this.reload();
@@ -398,7 +401,6 @@ phina.define("Craft_scene",
         {
           current_recipe_page--;
           SoundManager.play("select");
-          now_scene = "制作";
           self.exit("リフレッシュ");
         };
       }
@@ -411,7 +413,6 @@ phina.define("Craft_scene",
         {
           current_recipe_page++;
           SoundManager.play("select");
-          now_scene = "制作";
           self.exit("リフレッシュ");
         };
       }

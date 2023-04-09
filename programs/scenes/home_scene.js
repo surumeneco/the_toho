@@ -184,6 +184,7 @@ phina.define("Home_scene",
         .setPosition(SCREEN_W - buttons_x, buttons_y)
         .onpointend = function ()
         {
+          delete_cookies();
           SoundManager.play("start");
           self.exit("タイトル");
         };

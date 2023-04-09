@@ -273,6 +273,7 @@ phina.define("Title_scene",
         {
           SoundManager.play("newgame");
           player = new Player();
+          set_cookies();
           this.exit("ホーム");
         }
       });
@@ -286,6 +287,11 @@ phina.define("Title_scene",
     update: function (app)
     {
       bgm_check(app);
+
+      if (reload_check())
+      {
+        this.exit("ホーム");
+      }
 
       this.text_floating_fase += Math.PI / app.fps / 2;
       this.text_floating_fase %= Math.PI * 2;

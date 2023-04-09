@@ -90,6 +90,7 @@ phina.define("Win_scene",
         item.setPosition(CENTER_W, text_y);
         text_y += text_interval;
       }
+      set_cookies();
       /*-----=-----=-----=-----=-----=-----*/
 
 

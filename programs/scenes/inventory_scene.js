@@ -54,7 +54,9 @@ phina.define("Inventory_scene",
             {
               self.food_updated = true;
             }
+            player.eat(player.食料[i][0].名前);
             player.get_item(player.食料[i][0].名前, -1);
+            set_cookies();
             SoundManager.play("eat");
           }
         };
@@ -179,6 +181,7 @@ phina.define("Inventory_scene",
         .setPosition(buttons_x, buttons_y)
         .onpointend = function ()
         {
+          set_cookies();
           SoundManager.play("backhome");
           self.exit("ホーム");
         };

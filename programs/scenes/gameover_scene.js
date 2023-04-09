@@ -19,6 +19,8 @@ phina.define("Gameover_scene",
       //背景色
       this.backgroundColor = Black;
 
+      delete_cookies();
+
       /*-----=-----=-----=-----=-----=-----
           バージョン表示
         -----=-----=-----=-----=-----=-----*/
@@ -69,6 +71,17 @@ phina.define("Gameover_scene",
       text_y += text_interval;
       /*-----=-----=-----=-----=-----=-----*/
 
+      /*-----=-----=-----=-----=-----=-----
+          最も食べた食料表示
+        -----=-----=-----=-----=-----=-----*/
+      let most_eat_data = player.most_eat();
+      var moves = Label({ text: "多かった食料：" + most_eat_data[0] }).addChildTo(this);
+      moves.fill = White;
+      moves.fontSize = font_size;
+      moves.setPosition(CENTER_W, text_y);
+      text_y += text_interval;
+      /*-----=-----=-----=-----=-----=-----*/
+
 
 
       /*-----=-----=-----=-----=-----=-----
@@ -95,6 +108,7 @@ phina.define("Gameover_scene",
         .onpointend = function ()
         {
           player = new Player();
+          set_cookies();
           SoundManager.play("newgame");
           self.exit("ホーム");
         };

@@ -94,6 +94,7 @@ phina.define("Escape_scene",
         .setPosition(buttons_x, buttons_y - button_h * 1.3)
         .onpointend = function ()
         {
+          set_cookies();
           self.exit("探索");
         };
       /*-----=-----=-----=-----=-----=-----*/
@@ -111,6 +112,7 @@ phina.define("Escape_scene",
         .setPosition(buttons_x, buttons_y)
         .onpointend = function ()
         {
+          set_cookies();
           SoundManager.play("backhome");
           self.exit("ホーム");
         };

@@ -42,6 +42,7 @@ phina.define("Search_scene",
       player.移動距離 += 100;
       if (player.気力 < 0)
       {
+        set_cookies();
         SoundManager.play("gameover");
         this.exit("ゲームオーバー");
       }
@@ -50,11 +51,13 @@ phina.define("Search_scene",
 
       if (temp < battle_rate)
       {
+        set_cookies();
         SoundManager.play("battle");
         this.exit("戦闘");
       }
       else
       {
+        set_cookies();
         SoundManager.play("select");
         this.exit("入手");
       }

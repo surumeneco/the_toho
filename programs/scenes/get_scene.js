@@ -128,6 +128,10 @@ phina.define("Get_scene",
       HP.fill = White;
       HP.fontSize = font_size;
       HP.setPosition(CENTER_W, text_y);
+      if (player.体力 <= 20)
+      {
+        HP.fill = Red;
+      }
       text_y += text_interval;
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -143,7 +147,7 @@ phina.define("Get_scene",
         SP.fill = Red;
         SoundManager.play("alert");
       }
-      text_y += text_interval * 3;
+      text_y += text_interval * 2;
       /*-----=-----=-----=-----=-----=-----*/
 
 
@@ -159,6 +163,7 @@ phina.define("Get_scene",
         item.setPosition(CENTER_W, text_y);
         text_y += text_interval;
       }
+      set_cookies();
       /*-----=-----=-----=-----=-----=-----*/
 
 

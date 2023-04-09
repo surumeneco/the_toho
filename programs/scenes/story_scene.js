@@ -57,6 +57,7 @@ phina.define("Story_scene",
       {
         story_num = story_texts.length - 1;
       }
+      set_cookies();
       /*-----=-----=-----=-----=-----=-----*/
 
 

@@ -211,6 +211,7 @@ phina.define("Battle_scene",
         {
           if (self.戦闘フェイズ == "プレイヤーの攻撃")
           {
+            set_cookies();
             SoundManager.play("escape");
             self.exit("逃走");
           }
@@ -458,11 +459,13 @@ phina.define("Battle_scene",
             now_enemy = this.敵;
             if (this.敵.名前 == "女の子……？")
             {
+              set_cookies();
               SoundManager.play("story");
               this.exit("ストーリー");
             }
             else
             {
+              set_cookies();
               SoundManager.play("win");
               this.exit("勝利");
             }
@@ -510,6 +513,7 @@ phina.define("Battle_scene",
           break;
 
         case "ゲームオーバー":
+          set_cookies();
           SoundManager.play("gameover");
           this.exit("ゲームオーバー");
           break;
