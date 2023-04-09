@@ -22,11 +22,22 @@ phina.define("Inventory_scene",
       this.food_updated = false;
       this.is_sliding = false;
 
+
+
       /*-----=-----=-----=-----=-----=-----
           ウィンドウ位置設定
         -----=-----=-----=-----=-----=-----*/
-      this.window_ref = 300;
-      this.now_window_ref = this.window_ref;
+      this.押下中 = false;
+      this.慣性 = 0;
+      this.スクロール開始時間 = 0;
+      this.スクロール開始位置 = 0;
+      this.スクロール距離 = 0;
+      this.前フレームの座標 = 0;
+
+      this.上限 = 300;
+      this.下限 = SCREEN_H - 370;
+      this.始端位置 = this.上限;
+      this.終端位置 = this.始端位置;
       this.window_y;
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -39,7 +50,7 @@ phina.define("Inventory_scene",
       {
         this.食料ウィンドウ.push_text(player.食料[i][0].名前 + " x" + player.食料[i][1] + " 気力回復:" + player.食料[i][0].回復量);
       }
-      this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ / 2;
+      this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ / 2;
       this.食料ウィンドウ.set_position(CENTER_W, this.window_y);
       for (let i = 0; i < this.食料ウィンドウ.テキスト.length; i++)
       {
@@ -80,7 +91,7 @@ phina.define("Inventory_scene",
 
         this.武器ウィンドウ.push_text(player.武器[i][0].名前 + " x" + player.武器[i][1] + " 攻撃力:" + damage);
       }
-      this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ / 2;
+      this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ / 2;
       this.武器ウィンドウ.set_position(CENTER_W, this.window_y);
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -93,7 +104,7 @@ phina.define("Inventory_scene",
       {
         this.道具ウィンドウ.push_text(player.道具[i][0].名前 + " x" + player.道具[i][1]);
       }
-      this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.道具ウィンドウ.ウィンドウ高さ / 2;
+      this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.道具ウィンドウ.ウィンドウ高さ / 2;
       this.道具ウィンドウ.set_position(CENTER_W * 1.5 - 10, this.window_y);
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -106,7 +117,7 @@ phina.define("Inventory_scene",
       {
         this.素材ウィンドウ.push_text(player.素材[i][0].名前 + " x" + player.素材[i][1]);
       }
-      this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.素材ウィンドウ.ウィンドウ高さ / 2;
+      this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.素材ウィンドウ.ウィンドウ高さ / 2;
       this.素材ウィンドウ.set_position(CENTER_W * 0.5 + 10, this.window_y);
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -206,14 +217,15 @@ phina.define("Inventory_scene",
         -----=-----=-----=-----=-----=-----*/
       this.set_windows_pos = function ()
       {
-        this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ / 2;
+        this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ / 2;
         this.食料ウィンドウ.set_position(CENTER_W, this.window_y);
-        this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ / 2;
+        this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ / 2;
         this.武器ウィンドウ.set_position(CENTER_W, this.window_y);
-        this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.道具ウィンドウ.ウィンドウ高さ / 2;
+        this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.道具ウィンドウ.ウィンドウ高さ / 2;
         this.道具ウィンドウ.set_position(CENTER_W * 1.5 - 10, this.window_y);
-        this.window_y = this.now_window_ref + pointer_move_y + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.素材ウィンドウ.ウィンドウ高さ / 2;
+        this.window_y = this.始端位置 + this.スクロール距離 + this.食料ウィンドウ.ウィンドウ高さ + 30 + this.武器ウィンドウ.ウィンドウ高さ + 30 + this.素材ウィンドウ.ウィンドウ高さ / 2;
         this.素材ウィンドウ.set_position(CENTER_W * 0.5 + 10, this.window_y);
+        this.終端位置 = this.window_y + this.素材ウィンドウ.ウィンドウ高さ / 2;
       }
       /*-----=-----=-----=-----=-----=-----*/
 
@@ -224,18 +236,35 @@ phina.define("Inventory_scene",
         -----=-----=-----=-----=-----=-----*/
       this.on("pointstart", function (e)
       {
-        pointer_y = e.pointer.y;
-        this.is_sliding = true;
+        this.押下中 = true;
+        this.スクロール開始時間 = time;
+        this.スクロール開始位置 = e.pointer.y;
+        this.前フレームの座標 = e.pointer.y;
+        this.スクロール距離 = 0;
       });
-      this.on("pointmove", function (e)
+
+      this.on("pointstay", function (e)
       {
-        pointer_move_y = e.pointer.y - pointer_y;
+        this.スクロール距離 = e.pointer.y - this.スクロール開始位置;
+
+        let ポインター差分 = e.pointer.y - this.前フレームの座標;
+        if (ポインター差分 * ポインター差分 < 1)
+        {
+          this.スクロール開始時間 = time;
+          this.スクロール開始位置 = e.pointer.y;
+          this.始端位置 += this.スクロール距離;
+          this.スクロール距離 = 0;
+        }
+        this.前フレームの座標 = e.pointer.y;
       });
-      this.on("pointend", function ()
+
+      this.on("pointend", function (e)
       {
-        this.now_window_ref += pointer_move_y;
-        pointer_move_y = 0;
-        this.is_sliding = false;
+        this.押下中 = false;
+        let スクロール時間 = time - this.スクロール開始時間 + 1;
+        this.慣性 = this.スクロール距離 / (スクロール時間 / 10);
+        this.始端位置 += this.スクロール距離;
+        this.スクロール距離 = 0;
       });
       /*-----=-----=-----=-----=-----=-----*/
     },
@@ -246,6 +275,7 @@ phina.define("Inventory_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      time = app.currentTime;
       bgm_check(app);
 
       /*-----=-----=-----=-----=-----=-----
@@ -262,36 +292,68 @@ phina.define("Inventory_scene",
       /*-----=-----=-----=-----=-----=-----
           スクロール位置処理
         -----=-----=-----=-----=-----=-----*/
-      if (!this.is_sliding)
+      if (!this.押下中)
       {
-        var window_end = this.素材ウィンドウ.ウィンドウ.y + this.素材ウィンドウ.ウィンドウ高さ / 2;
-        if (window_end < this.道具ウィンドウ.ウィンドウ.y + this.道具ウィンドウ.ウィンドウ高さ / 2)
+        if (this.終端位置 - this.始端位置 > this.下限 - this.上限)
         {
-          window_end = this.道具ウィンドウ.ウィンドウ.y + this.道具ウィンドウ.ウィンドウ高さ / 2;
-        }
-        var end_ref = SCREEN_H - 350 - 20;
-
-        if (this.now_window_ref > this.window_ref)
-        {
-          this.now_window_ref -= (this.now_window_ref - this.window_ref) / (app.fps / 5) + 1;
-          if (this.now_window_ref < this.window_ref)
+          if (this.始端位置 > this.上限)
           {
-            this.now_window_ref = this.window_ref;
+            this.慣性 = 0;
+            this.始端位置 -= (this.始端位置 - this.上限) / (app.fps / 5) + 1;
+            if (this.始端位置 < this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
+          }
+          else if (this.終端位置 < this.下限)
+          {
+            this.慣性 = 0;
+            this.始端位置 += (this.下限 - this.終端位置) / (app.fps / 5) + 1;
+            if (this.終端位置 > this.下限)
+            {
+              this.始端位置 = this.上限;
+            }
+          }
+          else
+          {
+            this.始端位置 += this.慣性;
+            if (this.慣性 > 0)
+            {
+              this.慣性 -= this.慣性 / (app.fps / 5);
+              if (this.慣性 < 0)
+              {
+                this.慣性 = 0;
+              }
+            }
+            if (this.慣性 < 0)
+            {
+              this.慣性 += -this.慣性 / (app.fps / 5);
+              if (this.慣性 > 0)
+              {
+                this.慣性 = 0;
+              }
+            }
           }
         }
-        else if (window_end - this.now_window_ref > end_ref - this.window_ref)
+        else
         {
-          if (window_end < end_ref)
+          if (this.始端位置 > this.上限)
           {
-            this.now_window_ref += (end_ref - window_end) / (app.fps / 5) + 1;
+            this.慣性 = 0;
+            this.始端位置 -= (this.始端位置 - this.上限) / (app.fps / 5) + 1;
+            if (this.始端位置 < this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
           }
-        }
-        else if (this.now_window_ref < this.window_ref)
-        {
-          this.now_window_ref += (this.window_ref - this.now_window_ref) / (app.fps / 5) + 1;
-          if (this.now_window_ref > this.window_ref)
+          else
           {
-            this.now_window_ref = this.window_ref;
+            this.慣性 = 0;
+            this.始端位置 += (this.上限 - this.始端位置) / (app.fps / 5) + 1;
+            if (this.始端位置 > this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
           }
         }
       }

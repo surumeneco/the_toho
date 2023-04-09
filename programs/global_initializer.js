@@ -27,7 +27,8 @@ let path = "../";
 // const version = "1.1.2"; // 2023/03/19 22:50
 // const version = "1.1.3"; // 2023/03/24 24:20
 // const version = "1.2.0"; // 2023/03/31 26:45
-const version = "1.3.0"; // 2023/04/09 14:45
+// const version = "1.3.0"; // 2023/04/09 14:45
+const version = "1.3.1"; // 2023/04/09 18:10
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -44,6 +45,8 @@ const SCREEN_H = 1920;
 //使いやすいように
 const CENTER_W = SCREEN_W / 2;
 const CENTER_H = SCREEN_H / 2;
+
+var time = 0;
 
 //cookie
 var load_type = window.performance.navigation.type;

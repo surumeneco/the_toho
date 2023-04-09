@@ -33,11 +33,18 @@ phina.define("Craft_scene",
       /*-----=-----=-----=-----=-----=-----
           レシピ一覧位置
         -----=-----=-----=-----=-----=-----*/
-      this.recipes_interval = 20;
-      this.recipes_ref = 280 + this.recipes_interval;
-      this.recipes_end_ref = SCREEN_H - 350;
-      this.now_recipes_ref = this.recipes_ref;
-      this.end_recipes_ref = this.now_recipes_ref;
+      this.押下中 = false;
+      this.慣性 = 0;
+      this.スクロール開始時間 = 0;
+      this.スクロール開始位置 = 0;
+      this.スクロール距離 = 0;
+      this.上下余白 = 20;
+      this.前フレームの座標 = 0;
+
+      this.上限 = 280 + this.上下余白;
+      this.下限 = SCREEN_H - 350;
+      this.始端位置 = this.上限;
+      this.終端位置 = this.始端位置;
       /*-----=-----=-----=-----=-----=-----*/
 
       /*-----=-----=-----=-----=-----=-----
@@ -77,7 +84,7 @@ phina.define("Craft_scene",
         -----=-----=-----=-----=-----=-----*/
       this.scroll_bar = RectangleShape
         ({
-          width: 15, height: (this.recipes_end_ref - this.recipes_ref) / this.表示レシピ.length,
+          width: 15, height: (this.下限 - this.上限) / this.表示レシピ.length,
           fill: White, strokeWidth: 0,
           cornerRadius: 0
         }).addChildTo(this);
@@ -88,26 +95,26 @@ phina.define("Craft_scene",
         -----=-----=-----=-----=-----=-----*/
       this.set_recipes_pos = function ()
       {
-        var pos_y = this.now_recipes_ref + pointer_move_y;
+        var pos_y = this.始端位置 + this.スクロール距離;
         for (let i = 0; i < this.表示レシピ.length; i++)
         {
           pos_y += this.表示レシピ[i].ウィンドウ.height / 2;
           this.表示レシピ[i].set_position(CENTER_W, pos_y);
-          pos_y += this.表示レシピ[i].ウィンドウ.height / 2 + this.recipes_interval;
+          pos_y += this.表示レシピ[i].ウィンドウ.height / 2 + this.上下余白;
         }
-        this.end_recipes_ref = pos_y;
+        this.終端位置 = pos_y;
 
-        let scroll_bar_interval = (this.recipes_end_ref - this.recipes_ref) / this.表示レシピ.length;
-        let scroll_height = this.recipes_end_ref - this.recipes_ref;
-        let scroll_length = this.end_recipes_ref - (this.now_recipes_ref + pointer_move_y) - scroll_height;
-        let scroll_pos = this.recipes_ref - (this.now_recipes_ref + pointer_move_y);
+        let scroll_bar_interval = (this.下限 - this.上限) / this.表示レシピ.length;
+        let scroll_height = this.下限 - this.上限;
+        let scroll_length = this.終端位置 - (this.始端位置 + this.スクロール距離) - scroll_height;
+        let scroll_pos = this.上限 - (this.始端位置 + this.スクロール距離);
         if (scroll_pos < 0) scroll_pos = 0;
         if (scroll_pos > scroll_length) scroll_pos = scroll_length;
         var scroll_bar_pos = (scroll_height - scroll_bar_interval) * scroll_pos / scroll_length;
         this.scroll_bar.setPosition
           (
             SCREEN_W - this.scroll_bar.width,
-            this.recipes_ref + scroll_bar_interval / 2 + scroll_bar_pos
+            this.上限 + scroll_bar_interval / 2 + scroll_bar_pos
           );
       }
       this.set_recipes_pos();
@@ -269,20 +276,39 @@ phina.define("Craft_scene",
       /*-----=-----=-----=-----=-----=-----
           スクロール処理
         -----=-----=-----=-----=-----=-----*/
+
+
       this.on("pointstart", function (e)
       {
-        pointer_y = e.pointer.y;
-        this.is_sliding = true;
+        this.押下中 = true;
+        this.スクロール開始時間 = time;
+        this.スクロール開始位置 = e.pointer.y;
+        this.前フレームの座標 = e.pointer.y;
+        this.スクロール距離 = 0;
       });
-      this.on("pointmove", function (e)
+
+      this.on("pointstay", function (e)
       {
-        pointer_move_y = e.pointer.y - pointer_y;
+        this.スクロール距離 = e.pointer.y - this.スクロール開始位置;
+
+        let ポインター差分 = e.pointer.y - this.前フレームの座標;
+        if (ポインター差分 * ポインター差分 < 1)
+        {
+          this.スクロール開始時間 = time;
+          this.スクロール開始位置 = e.pointer.y;
+          this.始端位置 += this.スクロール距離;
+          this.スクロール距離 = 0;
+        }
+        this.前フレームの座標 = e.pointer.y;
       });
-      this.on("pointend", function ()
+
+      this.on("pointend", function (e)
       {
-        this.now_recipes_ref += pointer_move_y;
-        pointer_move_y = 0;
-        this.is_sliding = false;
+        this.押下中 = false;
+        let スクロール時間 = time - this.スクロール開始時間 + 1;
+        this.慣性 = this.スクロール距離 / (スクロール時間 / 10);
+        this.始端位置 += this.スクロール距離;
+        this.スクロール距離 = 0;
       });
       /*-----=-----=-----=-----=-----=-----*/
     },
@@ -293,6 +319,7 @@ phina.define("Craft_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      time = app.currentTime;
       bgm_check(app);
 
       var self = this;
@@ -346,29 +373,68 @@ phina.define("Craft_scene",
       /*-----=-----=-----=-----=-----=-----
           スクロール位置処理
         -----=-----=-----=-----=-----=-----*/
-      if (!this.is_sliding)
+      if (!this.押下中)
       {
-        if (this.now_recipes_ref > this.recipes_ref)
+        if (this.終端位置 - this.始端位置 > this.下限 - this.上限)
         {
-          this.now_recipes_ref -= (this.now_recipes_ref - this.recipes_ref) / (app.fps / 5) + 1;
-          if (this.now_recipes_ref < this.recipes_ref)
+          if (this.始端位置 > this.上限)
           {
-            this.now_recipes_ref = this.recipes_ref;
+            this.慣性 = 0;
+            this.始端位置 -= (this.始端位置 - this.上限) / (app.fps / 5) + 1;
+            if (this.始端位置 < this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
+          }
+          else if (this.終端位置 < this.下限)
+          {
+            this.慣性 = 0;
+            this.始端位置 += (this.下限 - this.終端位置) / (app.fps / 5) + 1;
+            if (this.終端位置 > this.下限)
+            {
+              this.始端位置 = this.上限;
+            }
+          }
+          else
+          {
+            this.始端位置 += this.慣性;
+            if (this.慣性 > 0)
+            {
+              this.慣性 -= this.慣性 / (app.fps / 2);
+              if (this.慣性 < 0)
+              {
+                this.慣性 = 0;
+              }
+            }
+            if (this.慣性 < 0)
+            {
+              this.慣性 += -this.慣性 / (app.fps / 2);
+              if (this.慣性 > 0)
+              {
+                this.慣性 = 0;
+              }
+            }
           }
         }
-        else if (this.end_recipes_ref - this.now_recipes_ref > this.recipes_end_ref - this.recipes_ref)
+        else
         {
-          if (this.end_recipes_ref < this.recipes_end_ref)
+          if (this.始端位置 > this.上限)
           {
-            this.now_recipes_ref += (this.recipes_end_ref - this.end_recipes_ref) / (app.fps / 5) + 1;
+            this.慣性 = 0;
+            this.始端位置 -= (this.始端位置 - this.上限) / (app.fps / 5) + 1;
+            if (this.始端位置 < this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
           }
-        }
-        else if (this.now_recipes_ref < this.recipes_ref)
-        {
-          this.now_recipes_ref += (this.recipes_ref - this.now_recipes_ref) / (app.fps / 5) + 1;
-          if (this.now_recipes_ref > this.recipes_ref)
+          else
           {
-            this.now_recipes_ref = this.recipes_ref;
+            this.慣性 = 0;
+            this.始端位置 += (this.上限 - this.始端位置) / (app.fps / 5) + 1;
+            if (this.始端位置 > this.上限)
+            {
+              this.始端位置 = this.上限;
+            }
           }
         }
       }

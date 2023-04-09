@@ -423,12 +423,10 @@ phina.define("Battle_scene",
           SoundManager.play("attack");
 
           this.戦闘フェイズ = "敵へのダメージを表示";
-          console.log(this.choosed_weapon);
           if (Math.floor(Math.random() * 100) < now_broken_rate)
           {
             if (this.choosed_weapon > 0)
             {
-              console.log(this.attacks[this.choosed_weapon].武器.名前);
               player.get_item(this.attacks[this.choosed_weapon].武器.名前, -1);
               this.broken_weapon = this.attacks[this.choosed_weapon].武器.名前;
               if (player.has_item(this.attacks[this.choosed_weapon].武器.名前) <= 0)
