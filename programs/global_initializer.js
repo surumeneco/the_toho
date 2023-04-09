@@ -28,7 +28,8 @@ let path = "../";
 // const version = "1.1.3"; // 2023/03/24 24:20
 // const version = "1.2.0"; // 2023/03/31 26:45
 // const version = "1.3.0"; // 2023/04/09 14:45
-const version = "1.3.1"; // 2023/04/09 18:10
+// const version = "1.3.1"; // 2023/04/09 18:10
+const version = "1.3.2"; // 2023/04/09 21:20
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -185,6 +186,14 @@ function set_cookies()
   保存期間.setTime(保存期間.getTime() + 1000 * 60 * 60 * 24 * 保存日数);
   保存期間.toUTCString();
 
+  データ = "BGM=" + music_volume + ";";
+  データ += "expires = " + 保存期間 + ";";
+  document.cookie = データ;
+
+  データ = "SE=" + SE_volume + ";";
+  データ += "expires = " + 保存期間 + ";";
+  document.cookie = データ;
+
   データ = "storydata=" + story_num + ";";
   データ += "expires = " + 保存期間 + ";";
   document.cookie = データ;
@@ -197,6 +206,10 @@ function set_cookies()
 //Cookieの削除
 function delete_cookies()
 {
+  データ = "BGM=;max-age=0";
+  document.cookie = データ;
+  データ = "SE=;max-age=0";
+  document.cookie = データ;
   データ = "storydata=;max-age=0";
   document.cookie = データ;
   データ = "playingdata=;max-age=0";
@@ -212,9 +225,17 @@ function get_cookies()
     let splited_data;
 
     splited_data = data[0].split("=");
-    story_num = splited_data[1];
+    music_volume = splited_data[1];
+    SoundManager.setVolumeMusic(music_volume / 100);
 
     splited_data = data[1].split("=");
+    SE_volume = splited_data[1];
+    SoundManager.setVolume(SE_volume / 100);
+
+    splited_data = data[2].split("=");
+    story_num = splited_data[1];
+
+    splited_data = data[3].split("=");
     let playing_data = JSON.parse(splited_data[1]);
     player.set_data(playing_data);
   }
