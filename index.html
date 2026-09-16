@@ -72,6 +72,7 @@
         'programs/story_resume_guard.js',
         'programs/story_trigger_engine.js',
         'programs/story_ui_extensions.js',
+        'programs/confirmation_and_notice.js',
         'programs/main.js',
         'programs/story_background_override.js'
       ];
@@ -121,7 +122,7 @@
       // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-stories-4');
+        url.searchParams.set('v', currentVersion + '-confirm-notice-1');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
