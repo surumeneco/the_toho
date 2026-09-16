@@ -63,6 +63,8 @@
         'programs/save_safety.js',
         'programs/scenes/archive_scene.js',
         'programs/archive_controls.js',
+        'programs/achievement_definitions.js',
+        'programs/achievements.js',
         'programs/main.js'
       ];
 
@@ -108,10 +110,10 @@
       document.cookie = 'version=' + encodeURIComponent(currentVersion)
         + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
 
-      // 全JSをバージョン別URLで取得。順番を保ってクラス定義後にゲームを起動する。
+      // Script revision is independent of game version, to avoid serving stale JS during 1.4.0 development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion);
+        url.searchParams.set('v', currentVersion + '-achievements-1');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
