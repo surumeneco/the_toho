@@ -6,7 +6,7 @@
 phina.globalize();
 
 //ロード用パス
-let path = "../";
+let path = "./";
 
 //バージョン管理
 // const version = "0.1.0"; // 2023/03/13 12:18
@@ -16,7 +16,7 @@ let path = "../";
 // const version = "0.4.0"; // 2023/03/15 21:20
 // const version = "0.4.1"; // 2023/03/15 21:40
 // const version = "0.4.2"; // 2023/03/15 21:45
-// const version = "0.4.3"; // 2023/03/15 21:50
+// const version = "0.4.3"; // 2023/03/15 22:20
 // const version = "0.4.4"; // 2023/03/15 22:20
 // const version = "0.5.0"; // 2023/03/15 27:50
 // const version = "0.5.1"; // 2023/03/15 28:10
