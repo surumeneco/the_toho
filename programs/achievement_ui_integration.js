@@ -25,6 +25,21 @@ Toho_archive_scene_v14.prototype.render = function () {
 // restoration guards. Never treat achievement deletion as history deletion.
 const toho_achievement_base_delete_dialog = Toho_archive_scene_v14.prototype.showDeleteDialog;
 Toho_archive_scene_v14.prototype.showDeleteDialog = function (kind) {
+  if (kind === 'history') {
+    const result = toho_achievement_base_delete_dialog.call(this, kind);
+    if (this._deleteDialog) {
+      this._deleteDialog.elements.forEach(function (element) {
+        if (typeof element.text !== 'string') return;
+        if (element.text.indexOf('プレイ履歴をすべて') !== -1) {
+          element.text = 'プレイ履歴と最高記録を\nすべて削除しますか？';
+        } else if (element.text.indexOf('最高記録・音量・プレイデータ') !== -1) {
+          element.text = '音量・図鑑・実績・ストーリー・プレイデータは残ります。';
+          element.fontSize = 30;
+        }
+      });
+    }
+    return result;
+  }
   if (kind !== 'achievements') return toho_achievement_base_delete_dialog.call(this, kind);
   if (this._deleteDialog || this._pendingDeleteRender || this._pendingDeleteRestore) return;
   const scene = this;
