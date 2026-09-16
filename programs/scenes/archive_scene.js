@@ -19,14 +19,14 @@ phina.define('Toho_title_scene', {
     Label({ text: '最高日数：' + records.bestDays + '日',
       fontSize: 49, fill: White }).addChildTo(this).setPosition(CENTER_W, 805);
     Button({ text: '図鑑', fontSize: 55, width: 370, height: 115,
-      fill: darkGray, stroke: lightGray, strokeWidth: 12, cornerRadius: 0 })
+      fill: darkGray, stroke: lightGray, strokeWidth: 15, cornerRadius: 0 })
       .addChildTo(this).setPosition(295, 1190).onpointend = function () {
         toho_archive_entry = 'index';
         SoundManager.play('select');
         self.exit('記録・図鑑');
       };
     Button({ text: 'プレイ履歴', fontSize: 49, width: 370, height: 115,
-      fill: darkGray, stroke: lightGray, strokeWidth: 12, cornerRadius: 0 })
+      fill: darkGray, stroke: lightGray, strokeWidth: 15, cornerRadius: 0 })
       .addChildTo(this).setPosition(785, 1190).onpointend = function () {
         toho_archive_entry = 'history';
         SoundManager.play('select');
@@ -84,10 +84,17 @@ phina.define('Toho_sleep_scene', {
   },
 });
 
+// レイアウト基準。既存画面と同じく外枠は白10px、情報枠は灰5px、主操作は灰15px。
+const TOHO_ARCHIVE_FOOTER_TOP = 1690;
+const TOHO_ARCHIVE_DETAIL_TOP = 300;
+const TOHO_ARCHIVE_DETAIL_BOTTOM = TOHO_ARCHIVE_FOOTER_TOP - 40;
+const TOHO_ARCHIVE_INVENTORY_TOP = 900;
+const TOHO_ARCHIVE_INVENTORY_BOTTOM = TOHO_ARCHIVE_DETAIL_BOTTOM;
 const TOHO_HISTORY_TOP = 440;
 const TOHO_HISTORY_BOTTOM = 1550;
 const TOHO_HISTORY_PITCH = 148;
 const TOHO_HISTORY_ROW_HEIGHT = 120;
+const TOHO_HISTORY_INSET = 18;
 
 phina.define('Toho_archive_scene', {
   superClass: 'DisplayScene',
@@ -150,11 +157,12 @@ phina.define('Toho_archive_scene', {
     label.setPosition(x, y);
     return label;
   },
-  button: function (text, x, y, width, height, action, fontSize) {
+  // 通常ボタンは15px、ページ操作だけ既存の小ボタンに合わせて10px。
+  button: function (text, x, y, width, height, action, fontSize, compact) {
     const self = this;
     const button = Button({ text: text, fontSize: fontSize || 49,
       width: width || 440, height: height || 118, cornerRadius: 0,
-      fill: darkGray, stroke: lightGray, strokeWidth: 9 }).addChildTo(this.body);
+      fill: darkGray, stroke: lightGray, strokeWidth: compact ? 10 : 15 }).addChildTo(this.body);
     button.setPosition(x, y);
     button.onpointend = function () {
       if (self.dragMoved) return;
@@ -163,9 +171,16 @@ phina.define('Toho_archive_scene', {
     };
     return button;
   },
+  // ヘッダー・フッターは元の持ち物画面と同じ白10pxの外枠。
+  frame: function (x, y, width, height) {
+    return RectangleShape({ width: width, height: height,
+      fill: Black, stroke: White, strokeWidth: 10, cornerRadius: 0 })
+      .addChildTo(this.body).setPosition(x, y);
+  },
+  // 内容パネルは既存のText_windowと同じ灰色5px、角丸なし。
   panel: function (x, y, width, height) {
     return RectangleShape({ width: width, height: height,
-      fill: 'rgba(15, 15, 15, 0.88)', stroke: lightGray, strokeWidth: 6 })
+      fill: darkGray, stroke: lightGray, strokeWidth: 5, cornerRadius: 0 })
       .addChildTo(this.body).setPosition(x, y);
   },
   change: function (view) {
@@ -195,11 +210,11 @@ phina.define('Toho_archive_scene', {
     if (this.page > 0) this.button('前へ', 230, 1610, 290, 100, function () {
       self.page--;
       self.render();
-    }, 45);
+    }, 45, true);
     if (this.page < count - 1) this.button('次へ', 850, 1610, 290, 100, function () {
       self.page++;
       self.render();
-    }, 45);
+    }, 45, true);
   },
   beginScroll: function (kind, contentHeight, top, bottom) {
     const saved = kind === 'history' ? this.historyOffset :
@@ -226,11 +241,12 @@ phina.define('Toho_archive_scene', {
     const span = area.bottom - area.top;
     const height = Math.max(62, span * span / area.contentHeight);
     this.scrollBar.height = height;
-    this.scrollBar.setPosition(SCREEN_W - 29,
+    // 所持品欄のバーはパネル内、その他はクリップ領域の右側に配置。
+    const x = area.kind === 'inventory' ? 1000 : SCREEN_W - 29;
+    this.scrollBar.setPosition(x,
       area.top + height / 2 + (span - height) * area.offset / area.max);
   },
-  // CanvasRendererのclip経路を利用し、子のPhina部品を領域内だけに描画する。
-  // 全行を子として保持する通常スクロールであり、仮想スクロールではない。
+  // CanvasRendererのclip経路を利用し、Phina部品を領域内にクリップする通常スクロール。
   clippedLayer: function (left, right) {
     const area = this.scrollArea;
     const layer = DisplayElement({ width: SCREEN_W, height: SCREEN_H }).addChildTo(this.body);
@@ -253,10 +269,10 @@ phina.define('Toho_archive_scene', {
     this.scrollRows.forEach(function (row) {
       const top = area.top + row.offset - area.offset;
       row.node.setPosition(row.x - CENTER_W, top + row.height / 2 - CENTER_H);
-      // クリップは描画を制御するだけなので、画面外ボタンの入力も明示的に止める。
+      // クリップは描画専用なので、画面外ボタンは入力も明示的に無効化。
       if (row.clickable) {
-        row.node.interactive = top >= area.top - 0.5 &&
-          top + row.height <= area.bottom + 0.5;
+        row.node.interactive = top >= area.top + 0.5 &&
+          top + row.height <= area.bottom - 0.5;
       }
     });
     this.positionScrollBar();
@@ -272,8 +288,10 @@ phina.define('Toho_archive_scene', {
       enemies: '敵図鑑', itemDetail: 'アイテム詳細', enemyDetail: '敵の詳細',
       history: 'プレイ履歴', historyDetail: 'プレイ記録の詳細',
     };
-    this.panel(CENTER_W, 165, SCREEN_W - 35, 235);
+    this.frame(CENTER_W, 140, SCREEN_W, 280);
     this.label(titles[this.view] || '記録', CENTER_W, 160, 78);
+    this.frame(CENTER_W, (TOHO_ARCHIVE_FOOTER_TOP + SCREEN_H) / 2,
+      SCREEN_W, SCREEN_H - TOHO_ARCHIVE_FOOTER_TOP);
     this.button('戻る', 830, 1800, 350, 115, function () { self.goBack(); });
     this.label('バージョン：' + version, 25, 1900, 33, true);
 
@@ -326,8 +344,10 @@ phina.define('Toho_archive_scene', {
     if (this.view === 'itemDetail' || this.view === 'enemyDetail') {
       const entry = this.selected;
       if (!entry) { this.goBack(); return; }
-      this.panel(CENTER_W, this.view === 'enemyDetail' ? 930 : 710,
-        955, this.view === 'enemyDetail' ? 1300 : 825);
+      // アイテム・敵の詳細枠は同一の上端・下端で揃える。
+      this.panel(CENTER_W,
+        (TOHO_ARCHIVE_DETAIL_TOP + TOHO_ARCHIVE_DETAIL_BOTTOM) / 2,
+        955, TOHO_ARCHIVE_DETAIL_BOTTOM - TOHO_ARCHIVE_DETAIL_TOP);
       this.label(entry.name, CENTER_W, 390, 68);
       if (this.view === 'itemDetail') {
         this.label('分類：' + entry.category, 110, 545, 50, true);
@@ -344,7 +364,7 @@ phina.define('Toho_archive_scene', {
         if (!drops.length) this.label('なし', 125, 975, 43, true);
         if (drops.length) {
           const pitch = 84;
-          this.beginScroll('drops', drops.length * pitch, 935, 1545);
+          this.beginScroll('drops', drops.length * pitch, 935, 1505);
           const layer = this.clippedLayer(105, 980);
           drops.forEach(function (drop, index) {
             const item = Label({ text: '・' + drop[0] + '　最大' + drop[1],
@@ -364,15 +384,17 @@ phina.define('Toho_archive_scene', {
         this.label('記録はまだありません。', CENTER_W, 700, 52);
         return;
       }
-      this.beginScroll('history', history.length * TOHO_HISTORY_PITCH,
-        TOHO_HISTORY_TOP, TOHO_HISTORY_BOTTOM);
+      // 先頭・末尾に余白を確保し、Buttonのstrokeがクリップで欠けないようにする。
+      const contentHeight = TOHO_HISTORY_INSET * 2 + TOHO_HISTORY_ROW_HEIGHT +
+        (history.length - 1) * TOHO_HISTORY_PITCH;
+      this.beginScroll('history', contentHeight, TOHO_HISTORY_TOP, TOHO_HISTORY_BOTTOM);
       const layer = this.clippedLayer(75, 1005);
       history.forEach(function (entry, index) {
         const title = String(index + 1) + '. ' + entry.days + '日 / ' +
           (entry.distanceMeters / 1000) + 'km';
         const button = Button({ text: title, fontSize: 50, width: 926,
           height: TOHO_HISTORY_ROW_HEIGHT, cornerRadius: 0,
-          fill: darkGray, stroke: lightGray, strokeWidth: 9 }).addChildTo(layer);
+          fill: darkGray, stroke: lightGray, strokeWidth: 15 }).addChildTo(layer);
         button.onpointend = function () {
           if (self.dragMoved || self.view !== 'history') return;
           SoundManager.play('select');
@@ -381,7 +403,8 @@ phina.define('Toho_archive_scene', {
           self.view = 'historyDetail';
           self.render();
         };
-        self.addScrollRow(button, CENTER_W, index * TOHO_HISTORY_PITCH,
+        self.addScrollRow(button, CENTER_W,
+          TOHO_HISTORY_INSET + index * TOHO_HISTORY_PITCH,
           TOHO_HISTORY_ROW_HEIGHT, true);
       });
       this.positionScrollRows();
@@ -390,7 +413,6 @@ phina.define('Toho_archive_scene', {
     if (this.view === 'historyDetail') {
       const entry = this.selected;
       if (!entry) { this.change('history'); return; }
-      // 上端を約半行下げ、下端を約1.5行上げて記録情報枠を縮小する。
       this.panel(CENTER_W, 570, 980, 480);
       const stamp = entry.endedAt ? new Date(entry.endedAt).toLocaleString('ja-JP') : '記録日時なし';
       this.label('終了：' + stamp, 95, 385, 43, true);
@@ -400,26 +422,30 @@ phina.define('Toho_archive_scene', {
         this.label('戦闘回数（勝利）：' + entry.battleCount + '回', 95, 670, 45, true);
         this.label('逃走回数：' + entry.escapeCount + '回', 95, 765, 45, true);
       } else {
-        // 以前の履歴は戦闘開始数しか記録しておらず勝敗を復元できない。
         this.label('戦闘回数（旧・開始数）：' + entry.battleCount + '回', 95, 670, 42, true);
         this.label('逃走回数：記録なし（旧仕様）', 95, 765, 42, true);
       }
+      // 所持品は見出し・枠とも約1.5行上に移動し、下端を詳細枠と揃える。
       const items = Array.isArray(entry.items) ? entry.items : [];
-      this.label('死亡時の所持品（' + items.length + '種）', CENTER_W, 985, 52);
-      this.panel(CENTER_W, 1300, 960, 560);
+      this.label('死亡時の所持品（' + items.length + '種）', CENTER_W, 865, 52);
+      this.panel(CENTER_W,
+        (TOHO_ARCHIVE_INVENTORY_TOP + TOHO_ARCHIVE_INVENTORY_BOTTOM) / 2,
+        960, TOHO_ARCHIVE_INVENTORY_BOTTOM - TOHO_ARCHIVE_INVENTORY_TOP);
       const rows = [];
       let offset = 8;
       TOHO_ITEM_TYPES.forEach(function (type) {
         rows.push({ type: type, heading: true, offset: offset, height: 90 });
-        offset += 90;
+        offset += 135; // 見出し直下の区切り線を下げても、次の所持品と重ねない。
         items.filter(function (item) { return item.category === type.id; }).forEach(function (item) {
           rows.push({ item: item, offset: offset, height: 74 });
           offset += 74;
         });
         offset += 15;
       });
-      this.beginScroll('inventory', offset + 8, 1045, 1550);
-      const layer = this.clippedLayer(85, 990);
+      this.beginScroll('inventory', offset + 8,
+        TOHO_ARCHIVE_INVENTORY_TOP + 25,
+        TOHO_ARCHIVE_INVENTORY_BOTTOM - 25);
+      const layer = this.clippedLayer(85, 975);
       rows.forEach(function (row) {
         const heading = row.heading;
         const text = heading ? '【' + row.type.name + '】' :
@@ -430,8 +456,8 @@ phina.define('Toho_archive_scene', {
         self.addScrollRow(item, heading ? 118 : 135, row.offset, row.height, false);
         if (heading) {
           const line = RectangleShape({ width: 842, height: 2,
-            fill: lightGray, strokeWidth: 0 }).addChildTo(layer);
-          self.addScrollRow(line, CENTER_W, row.offset + 64, 2, false);
+            fill: lightGray, strokeWidth: 0, cornerRadius: 0 }).addChildTo(layer);
+          self.addScrollRow(line, CENTER_W, row.offset + 104, 2, false);
         }
       });
       this.positionScrollRows();
