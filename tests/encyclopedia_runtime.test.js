@@ -15,11 +15,10 @@ const env = {
     },
   },
   crypto: { randomUUID() { return 'run-id'; } },
-  version: '1.4.2',
+  version: '1.4.3',
   music_volume: 25, SE_volume: 25, saved_music_volume: 25, saved_SE_volume: 25,
   SoundManager: { setVolumeMusic() {}, setVolume() {} },
-  read_cookie() { return null; }, write_cookie() {},
-  set_settings_cookies() {}, get_settings_cookies() {},
+  set_settings_cookies() { return true; }, get_settings_cookies() { return true; },
   set_cookies() { return true; }, get_cookies() { return true; }, delete_cookies() { return true; },
   foods_data: [{ 名前: 'りんご', 探索入手: true, 最大入手数: 2, 回復量: 4 }],
   weapons_data: [{ 名前: '棒', 攻撃力: { ダイス: [[1, 4]], 固定値: 0 } }],
@@ -74,4 +73,5 @@ assert(run('toho_meta.encyclopedia.enemyIds.includes("enemy:0001")'));
 savedMeta = JSON.parse(storage.get('the_toho:meta:v1'));
 assert(savedMeta.encyclopedia.enemyIds.includes('enemy:0001'));
 
-console.log('PASS: inventory scan, item acquisition and enemy encounter persist encyclopedia unlocks');
+assert.equal(typeof env.read_cookie, 'undefined');
+console.log('PASS: localStorage inventory scan, item acquisition and enemy encounter persist encyclopedia unlocks');
