@@ -8,6 +8,7 @@ phina.main(function ()
       //画面サイズ設定
       width: SCREEN_W,
       height: SCREEN_H,
+      fit: false,
 
       //アセット読み込み
       assets: ASSETS,
