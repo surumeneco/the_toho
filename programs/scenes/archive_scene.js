@@ -8,7 +8,7 @@ function toho_attack_text(attack) {
 }
 function toho_percentage(known, total) { return total ? Math.floor(100 * known / total) : 0; }
 
-// タイトル本来の音量操作を維持し、専用の閲覧ボタン上ではゲームを開始しない。
+// タイトル本来の音量操作を維持し、閲覧ボタン上ではゲームを開始しない。
 phina.define('Toho_title_scene', {
   superClass: 'Title_scene',
   init: function (option) {
@@ -33,8 +33,8 @@ phina.define('Toho_title_scene', {
         SoundManager.play('select');
         self.exit('記録・図鑑');
       };
-    // 旧タイトルはあらゆるタップでゲームを始めるため、専用ボタンを除外する。
-    this.off('pointend');
+    // EventDispatcher.offはリスナー関数が必須。clear(type)で旧スタート操作だけ外す。
+    this.clear('pointend');
     this.on('pointend', function (e) {
       const point = e.pointer;
       if (point && point.y >= 1120 && point.y <= 1260 &&
@@ -49,7 +49,7 @@ phina.define('Toho_title_scene', {
   },
 });
 
-// 出現した戦闘だけを計数する。敵選定後、HP変化前に遭遇を図鑑へ記録する。
+// 戦闘の初期化完了時に遭遇・戦闘回数を記録する。
 phina.define('Toho_battle_scene', {
   superClass: 'Battle_scene',
   init: function (option) {
@@ -88,7 +88,7 @@ phina.define('Toho_archive_scene', {
     this.lastCatalogSize = -1;
     this.render();
   },
-  clear: function () {
+  clearContent: function () {
     this.body.children.slice().forEach(function (child) { child.remove(); });
   },
   label: function (text, x, y, size, left) {
@@ -131,7 +131,7 @@ phina.define('Toho_archive_scene', {
     }
   },
   render: function () {
-    this.clear();
+    this.clearContent();
     const self = this;
     const rates = toho_discovery_rates();
     this.lastCatalogSize = rates.grandTotal;
@@ -177,7 +177,11 @@ phina.define('Toho_archive_scene', {
           self.view = isItem ? 'itemDetail' : 'enemyDetail';
           self.render();
         }, 45);
-        if (!found) { button.fontColor = lightGray; button.fill = '#292929'; }
+        if (!found) {
+          button.fontColor = lightGray;
+          button.fill = '#292929';
+          button.onpointend = function () {};
+        }
       });
       this.pages(total, 8);
       return;
@@ -213,7 +217,9 @@ phina.define('Toho_archive_scene', {
           (entry.distanceMeters / 1000) + 'km';
         self.button(title, CENTER_W, 400 + i * 163, 950, 127, function () {
           self.selected = entry;
-          self.change('historyDetail', entry);
+          self.itemPage = 0;
+          self.view = 'historyDetail'; // 履歴一覧のページ番号を維持する。
+          self.render();
         }, 50);
       });
       this.pages(history.length, 7);
@@ -254,7 +260,7 @@ phina.define('Toho_archive_scene', {
   },
   update: function (app) {
     bgm_check(app);
-    // JSONの読み込みがタイトル表示より遅かった場合も、一覧を読み直す。
+    // JSONの読み込みがタイトル表示より遅い場合、解放率・一覧を再構築する。
     if (this.lastCatalogSize !== toho_discovery_rates().grandTotal &&
       this.view !== 'itemDetail' && this.view !== 'enemyDetail' && this.view !== 'historyDetail') {
       this.render();
