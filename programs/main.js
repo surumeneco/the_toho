@@ -120,89 +120,31 @@ function install_scene_backgrounds(app) {
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     中央処理
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-phina.main(function ()
-{
-  var app = GameApp
-    ({
-      //画面サイズ設定
-      width: SCREEN_W,
-      height: SCREEN_H,
-      fit: false,
-
-      //アセット読み込み
-      assets: ASSETS,
-
-      fps: 60,
-      startLabel: "タイトル",
-      scenes:
-        [
-          {
-            label: "タイトル",
-            className: "Title_scene",
-            backgroundCategory: "title",
-          },
-          {
-            label: "ホーム",
-            className: "Home_scene",
-            backgroundCategory: "base_day",
-          },
-          {
-            label: "探索",
-            className: "Search_scene",
-            backgroundCategory: "exploration",
-          },
-          {
-            label: "戦闘",
-            className: "Battle_scene",
-            backgroundCategory: "exploration",
-          },
-          {
-            label: "勝利",
-            className: "Win_scene",
-            backgroundCategory: "exploration",
-          },
-          {
-            label: "逃走",
-            className: "Escape_scene",
-            backgroundCategory: "exploration",
-          },
-          {
-            label: "入手",
-            className: "Get_scene",
-            backgroundCategory: "exploration",
-          },
-          {
-            label: "制作",
-            className: "Craft_scene",
-            backgroundCategory: "base_day",
-          },
-          {
-            label: "持ち物",
-            className: "Inventory_scene",
-            backgroundCategory: "base_day",
-          },
-          {
-            label: "睡眠",
-            className: "Sleep_scene",
-            backgroundCategory: "base_night",
-          },
-          {
-            label: "ストーリー",
-            className: "Story_scene",
-            backgroundCategory: "story",
-          },
-          {
-            label: "ゲームオーバー",
-            className: "Gameover_scene",
-            backgroundCategory: "result",
-          },
-          {
-            label: "リフレッシュ",
-            className: "Refresh_scene",
-            backgroundCategory: null,
-          }
-        ]
-    });
+phina.main(function () {
+  var app = GameApp({
+    width: SCREEN_W,
+    height: SCREEN_H,
+    fit: false,
+    assets: ASSETS,
+    fps: 60,
+    startLabel: 'タイトル',
+    scenes: [
+      { label: 'タイトル', className: 'Toho_title_scene', backgroundCategory: 'title' },
+      { label: '記録・図鑑', className: 'Toho_archive_scene', backgroundCategory: 'history' },
+      { label: 'ホーム', className: 'Home_scene', backgroundCategory: 'base_day' },
+      { label: '探索', className: 'Toho_search_scene', backgroundCategory: 'exploration' },
+      { label: '戦闘', className: 'Toho_battle_scene', backgroundCategory: 'exploration' },
+      { label: '勝利', className: 'Win_scene', backgroundCategory: 'exploration' },
+      { label: '逃走', className: 'Escape_scene', backgroundCategory: 'exploration' },
+      { label: '入手', className: 'Get_scene', backgroundCategory: 'exploration' },
+      { label: '制作', className: 'Craft_scene', backgroundCategory: 'base_day' },
+      { label: '持ち物', className: 'Inventory_scene', backgroundCategory: 'base_day' },
+      { label: '睡眠', className: 'Toho_sleep_scene', backgroundCategory: 'base_night' },
+      { label: 'ストーリー', className: 'Story_scene', backgroundCategory: 'story' },
+      { label: 'ゲームオーバー', className: 'Gameover_scene', backgroundCategory: 'result' },
+      { label: 'リフレッシュ', className: 'Refresh_scene', backgroundCategory: null },
+    ],
+  });
   install_scene_backgrounds(app);
   app.run();
 });
