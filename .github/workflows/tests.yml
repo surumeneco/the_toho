@@ -2,7 +2,7 @@ name: Browser-independent tests
 
 on:
   push:
-    branches: ['feature/1.4.0']
+    branches: ['master', 'feature/**']
   pull_request:
 
 permissions:
@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Progress save regressions
+        run: node tests/progress_storage.test.js
       - name: Achievement regressions
         run: node tests/achievements.test.js
       - name: Encyclopedia completion achievements
