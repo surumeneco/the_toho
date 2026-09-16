@@ -122,6 +122,8 @@ function start_toho_game() {
   if (!toho_data_is_ready()) {
     throw new Error('ゲームデータの変換完了前に起動しようとしました。');
   }
+  toho_prepare_encyclopedia_catalog();
+
   var app = GameApp({
     width: SCREEN_W,
     height: SCREEN_H,
@@ -131,7 +133,7 @@ function start_toho_game() {
     startLabel: 'タイトル',
     scenes: [
       { label: 'タイトル', className: 'Toho_title_scene_v14', backgroundCategory: 'title' },
-      { label: '記録・図鑑', className: 'Toho_archive_scene_v14', backgroundCategory: 'history' },
+      { label: '記録・図鑑', className: 'Toho_archive_scene_v143', backgroundCategory: 'history' },
       { label: 'ホーム', className: 'Home_scene', backgroundCategory: 'base_day' },
       { label: '探索', className: 'Toho_search_scene', backgroundCategory: 'exploration' },
       { label: '戦闘', className: 'Toho_battle_scene', backgroundCategory: 'exploration' },
@@ -165,7 +167,7 @@ function show_data_load_error(error) {
     中央処理
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 phina.main(function () {
-  // JSON読み込みと変換が完了してからGameAppを生成する。図鑑や探索が空配列を参照する競合を防ぐ。
+  // JSON読み込み・変換・図鑑カタログ検証が完了してからGameAppを生成する。
   toho_data_ready.then(start_toho_game).catch(show_data_load_error);
 });
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
