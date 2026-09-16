@@ -4,14 +4,17 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
+function readData(file) {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'datas', file), 'utf8'));
+}
 const fixtures = {
-  foods: [{ 名前: 'りんご', 探索入手: true, 最大入手数: 2, 回復量: 4 }],
-  weapons: [{ 名前: '棒', 攻撃力: { ダイス: [[1, 4]], 固定値: 0 } }],
-  tools: [{ 名前: '袋' }],
-  materials: [{ 名前: '木材', 必要道具: '無し', 最大入手数: 3 }],
-  recipes: [{ 必要道具: '無し', レシピ: [{ 制作物: '棒', 制作気力: 1, 個数: 1, 必要素材: [] }] }],
-  enemies: [{ 名前: '兎', 体力: 5, 攻撃力: { ダイス: [[1, 2]], 固定値: 0 }, ドロップ: [], 出現距離: 0 }],
-  stories: [['本文']],
+  foods: readData('foods.json'),
+  weapons: readData('weapons.json'),
+  tools: readData('tools.json'),
+  materials: readData('materials.json'),
+  recipes: readData('recipes.json'),
+  enemies: readData('enemies.json'),
+  stories: readData('story.json'),
 };
 
 const env = {
@@ -62,13 +65,17 @@ async function main() {
     assert.equal(state.status, 'loaded');
     assert.equal(state.error, null);
   });
-  assert.equal(env.foods_data.length, 1);
-  assert.equal(env.weapons_data.length, 1);
-  assert.equal(env.tools_data.length, 1);
-  assert.equal(env.materials_data.length, 1);
-  assert.equal(env.recipes_data.length, 1);
-  assert.equal(env.enemies_data.length, 1);
-  assert.equal(env.story_texts.length, 1);
+  assert.equal(env.foods_data.length, fixtures.foods.length);
+  assert.equal(env.weapons_data.length, fixtures.weapons.length);
+  assert.equal(env.tools_data.length, fixtures.tools.length);
+  assert.equal(env.materials_data.length, fixtures.materials.length);
+  assert.equal(env.recipes_data.length, fixtures.recipes.length);
+  assert.equal(env.enemies_data.length, fixtures.enemies.length);
+  assert.equal(env.story_texts.length, fixtures.stories.length);
+  assert(env.foods_data.length > 0, 'foods catalog must not be empty');
+  assert(env.weapons_data.length > 0, 'weapons catalog must not be empty');
+  assert(env.tools_data.length > 0, 'tools catalog must not be empty');
+  assert(env.materials_data.length > 0, 'materials catalog must not be empty');
 
   env.fetch = () => Promise.resolve({ ok: false, status: 404, statusText: 'Not Found' });
   const failed = vm.runInContext(`loading('missing', load_JSON, load_foods)`, env);
@@ -76,6 +83,6 @@ async function main() {
   assert.equal(failed.loaded, false);
   assert.equal(failed.status, 'failed');
   assert(failed.error instanceof Error);
-  console.log('PASS: JSON data stays loading until conversion finishes and reports failures');
+  console.log('PASS: repository JSON data loads completely and failures are surfaced');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
