@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="the-toho-version" content="1.3.3" />
   <title>THE 徒歩</title>
   <style>
     html, body {
@@ -26,45 +27,98 @@
       max-height: 100%;
     }
   </style>
+  <script>
+    (async function () {
+      const currentVersion = document.querySelector('meta[name="the-toho-version"]').content;
+      const base = new URL('./', window.location.href);
+      const cookiePath = base.pathname;
+      const scriptFiles = [
+        'frameworks/colors_HEX.js',
+        'frameworks/colors_String.js',
+        'frameworks/phina.js',
+        'programs/classes/item.js',
+        'programs/classes/dices.js',
+        'programs/classes/attack_button.js',
+        'programs/classes/player_data.js',
+        'programs/classes/enemy.js',
+        'programs/loadings.js',
+        'programs/global_initializer.js',
+        'programs/classes/text_window.js',
+        'programs/scenes/loading_scene.js',
+        'programs/scenes/title_scene.js',
+        'programs/scenes/home_scene.js',
+        'programs/scenes/search_scene.js',
+        'programs/scenes/battle_scene.js',
+        'programs/scenes/win_scene.js',
+        'programs/scenes/escape_scene.js',
+        'programs/scenes/get_scene.js',
+        'programs/scenes/craft_scene.js',
+        'programs/scenes/inventory_scene.js',
+        'programs/scenes/sleep_scene.js',
+        'programs/scenes/gameover_scene.js',
+        'programs/scenes/story_scene.js',
+        'programs/scenes/refresh_scene.js',
+        'programs/main.js'
+      ];
 
-  <!-- フレームワーク読み込み -->
-  <script src="./frameworks/colors_HEX.js"></script>
-  <script src="./frameworks/colors_String.js"></script>
-  <script src="./frameworks/phina.js"></script>
+      // HTML自体が古いキャッシュから提供された場合も、最新のバージョンを確認する。
+      try {
+        const freshIndex = new URL('index.html', base);
+        freshIndex.searchParams.set('version_check', Date.now().toString());
+        const response = await fetch(freshIndex, { cache: 'no-store' });
+        if (response.ok) {
+          const html = await response.text();
+          const match = html.match(/<meta\s+name="the-toho-version"\s+content="([^"]+)"/);
+          if (match && match[1] !== currentVersion) {
+            const target = new URL(window.location.href);
+            if (target.searchParams.get('v') !== match[1]) {
+              target.searchParams.set('v', match[1]);
+              window.location.replace(target.href);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('バージョン確認に失敗しました。現在のバージョンで起動します。', error);
+      }
 
-  <!-- クラス読みこみ -->
-  <script src="./programs/classes/item.js"></script>
-  <script src="./programs/classes/dices.js"></script>
-  <script src="./programs/classes/attack_button.js"></script>
+      const savedVersion = document.cookie.split('; ').find(entry => entry.startsWith('version='));
+      const previousVersion = savedVersion ? decodeURIComponent(savedVersion.substring('version='.length)) : null;
+      if (previousVersion !== currentVersion && 'caches' in window) {
+        // 同一オリジンの別アプリに影響させず、本ゲームに属するCacheStorageだけを削除する。
+        try {
+          for (const cacheName of await caches.keys()) {
+            const cache = await caches.open(cacheName);
+            for (const request of await cache.keys()) {
+              const url = new URL(request.url);
+              if (url.origin === base.origin && url.pathname.startsWith(cookiePath)) {
+                await cache.delete(request);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('キャッシュの削除に失敗しました。バージョン付きURLから読み込みます。', error);
+        }
+      }
+      document.cookie = 'version=' + encodeURIComponent(currentVersion)
+        + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
 
-  <!-- プレイヤークラス読み込み -->
-  <script src="./programs/classes/player_data.js"></script>
-  <script src="./programs/classes/enemy.js"></script>
-
-  <!-- 設定プログラム読み込み -->
-  <script src="./programs/loadings.js"></script>
-  <script src="./programs/global_initializer.js?v=20260916-2"></script>
-
-  <script src="./programs/classes/text_window.js"></script>
-
-  <!-- シーン読み込み -->
-  <script src="./programs/scenes/loading_scene.js"></script>
-  <script src="./programs/scenes/title_scene.js"></script>
-  <script src="./programs/scenes/home_scene.js"></script>
-  <script src="./programs/scenes/search_scene.js"></script>
-  <script src="./programs/scenes/battle_scene.js"></script>
-  <script src="./programs/scenes/win_scene.js"></script>
-  <script src="./programs/scenes/escape_scene.js"></script>
-  <script src="./programs/scenes/get_scene.js"></script>
-  <script src="./programs/scenes/craft_scene.js"></script>
-  <script src="./programs/scenes/inventory_scene.js"></script>
-  <script src="./programs/scenes/sleep_scene.js"></script>
-  <script src="./programs/scenes/gameover_scene.js"></script>
-  <script src="./programs/scenes/story_scene.js"></script>
-  <script src="./programs/scenes/refresh_scene.js"></script>
-
-  <!-- メインプログラム読み込み -->
-  <script src="./programs/main.js"></script>
+      // 全JSをバージョン別URLで取得。順番を保ってクラス定義後にゲームを起動する。
+      for (const file of scriptFiles) {
+        const url = new URL(file, base);
+        url.searchParams.set('v', currentVersion);
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = url.href;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error('スクリプトを読み込めません: ' + file));
+          document.head.appendChild(script);
+        });
+      }
+    })().catch(error => {
+      console.error('THE 徒歩の起動に失敗しました。', error);
+    });
+  </script>
 </head>
 
 <body bgcolor="#3F3F3F">
