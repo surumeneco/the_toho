@@ -32,7 +32,7 @@ phina.define('Toho_title_scene', {
         SoundManager.play('select');
         self.exit('記録・図鑑');
       };
-    // 観覧ボタンで親シーンのスタート操作が発火しないようにする。
+    // 閲覧ボタンで親シーンのスタート操作が発火しないようにする。
     this.clear('pointend');
     this.on('pointend', function (e) {
       const point = e.pointer;
@@ -105,6 +105,7 @@ phina.define('Toho_archive_scene', {
     this.inventoryOffset = 0;
     this.dropOffset = 0;
     this.scrollArea = null;
+    this.scrollRows = [];
     this.scrollActive = false;
     this.dragMoved = false;
     this.body = DisplayElement().addChildTo(this);
@@ -129,33 +130,16 @@ phina.define('Toho_archive_scene', {
       const area = this.scrollArea;
       area.offset = Math.max(0, Math.min(area.max, this.scrollStartOffset - distance));
       this.keepScrollOffset();
-      this.positionScrollBar();
+      this.positionScrollRows();
     };
     this.on('pointmove', move);
     this.on('pointstay', move);
-    this.on('pointend', function (e) {
-      this.scrollActive = false;
-      if (this.view !== 'history' || this.dragMoved || !e.pointer) return;
-      const area = this.scrollArea;
-      const x = e.pointer.x;
-      const y = e.pointer.y;
-      if (!area || area.kind !== 'history' || x < 75 || x > 1005 ||
-        y < area.top || y > area.bottom) return;
-      const offset = y - area.top + area.offset;
-      const index = Math.floor(offset / TOHO_HISTORY_PITCH);
-      if (offset - index * TOHO_HISTORY_PITCH > TOHO_HISTORY_ROW_HEIGHT) return;
-      const entry = toho_meta.history[index];
-      if (!entry) return;
-      SoundManager.play('select');
-      this.selected = entry;
-      this.inventoryOffset = 0;
-      this.view = 'historyDetail';
-      this.render();
-    });
+    this.on('pointend', function () { this.scrollActive = false; });
   },
   clearContent: function () {
     this.body.children.slice().forEach(function (child) { child.remove(); });
     this.scrollArea = null;
+    this.scrollRows = [];
     this.scrollBar = null;
     this.scrollActive = false;
     this.dragMoved = false;
@@ -207,7 +191,6 @@ phina.define('Toho_archive_scene', {
   pages: function (length, size) {
     const self = this;
     const count = Math.max(1, Math.ceil(length / size));
-    // ページ表示は前へ・次へと同じ高さ。
     this.label((this.page + 1) + ' / ' + count + 'ページ', CENTER_W, 1610, 44);
     if (this.page > 0) this.button('前へ', 230, 1610, 290, 100, function () {
       self.page--;
@@ -246,26 +229,37 @@ phina.define('Toho_archive_scene', {
     this.scrollBar.setPosition(SCREEN_W - 29,
       area.top + height / 2 + (span - height) * area.offset / area.max);
   },
-  // 全行を通常描画し、Canvasクリップで枠外だけを非表示にする（仮想スクロールしない）。
-  clippedList: function (kind, left, right, rows, painter) {
-    const scene = this;
+  // CanvasRendererのclip経路を利用し、子のPhina部品を領域内だけに描画する。
+  // 全行を子として保持する通常スクロールであり、仮想スクロールではない。
+  clippedLayer: function (left, right) {
+    const area = this.scrollArea;
     const layer = DisplayElement({ width: SCREEN_W, height: SCREEN_H }).addChildTo(this.body);
     layer.setPosition(CENTER_W, CENTER_H);
-    layer.interactive = false;
-    layer.draw = function (canvas) {
-      const area = scene.scrollArea;
-      if (!area || area.kind !== kind) return;
+    layer.clip = function (canvas) {
       const context = canvas.context;
-      context.save();
       context.beginPath();
       context.rect(left - CENTER_W, area.top - CENTER_H,
         right - left, area.bottom - area.top);
-      context.clip();
-      rows.forEach(function (row) {
-        painter(context, row, area.top + row.offset - area.offset - CENTER_H);
-      });
-      context.restore();
     };
+    return layer;
+  },
+  addScrollRow: function (node, x, offset, height, clickable) {
+    this.scrollRows.push({ node: node, x: x, offset: offset, height: height,
+      clickable: !!clickable });
+  },
+  positionScrollRows: function () {
+    const area = this.scrollArea;
+    if (!area) return;
+    this.scrollRows.forEach(function (row) {
+      const top = area.top + row.offset - area.offset;
+      row.node.setPosition(row.x - CENTER_W, top + row.height / 2 - CENTER_H);
+      // クリップは描画を制御するだけなので、画面外ボタンの入力も明示的に止める。
+      if (row.clickable) {
+        row.node.interactive = top >= area.top - 0.5 &&
+          top + row.height <= area.bottom + 0.5;
+      }
+    });
+    this.positionScrollBar();
   },
   render: function () {
     this.clearContent();
@@ -349,56 +343,55 @@ phina.define('Toho_archive_scene', {
         this.label('ドロップ候補（最大入手数）：', 110, 865, 43, true);
         if (!drops.length) this.label('なし', 125, 975, 43, true);
         if (drops.length) {
-          const rows = drops.map(function (drop, index) {
-            return { name: drop[0], amount: drop[1], offset: index * 84 };
+          const pitch = 84;
+          this.beginScroll('drops', drops.length * pitch, 935, 1545);
+          const layer = this.clippedLayer(105, 980);
+          drops.forEach(function (drop, index) {
+            const item = Label({ text: '・' + drop[0] + '　最大' + drop[1],
+              fontSize: 44, fill: White }).addChildTo(layer);
+            item.align = 'left';
+            self.addScrollRow(item, 125, index * pitch, pitch, false);
           });
-          this.beginScroll('drops', rows.length * 84, 935, 1545);
-          this.clippedList('drops', 105, 980, rows, function (ctx, row, y) {
-            ctx.fillStyle = White;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.font = '44px sans-serif';
-            ctx.fillText('・' + row.name + '　最大' + row.amount,
-              125 - CENTER_W, y + 42, 825);
-          });
+          this.positionScrollRows();
         }
       }
       return;
     }
     if (this.view === 'history') {
       const history = toho_meta.history;
-      // 見出しはヘッダー枠の外側、背景を追加せず表示する。
       this.label('死亡時の記録（最新10件） / ' + history.length + '件', CENTER_W, 350, 44);
       if (!history.length) {
         this.label('記録はまだありません。', CENTER_W, 700, 52);
         return;
       }
-      const rows = history.map(function (entry, index) {
-        return { entry: entry, index: index, offset: index * TOHO_HISTORY_PITCH };
-      });
-      this.beginScroll('history', rows.length * TOHO_HISTORY_PITCH,
+      this.beginScroll('history', history.length * TOHO_HISTORY_PITCH,
         TOHO_HISTORY_TOP, TOHO_HISTORY_BOTTOM);
-      this.clippedList('history', 75, 1005, rows, function (ctx, row, y) {
-        const left = 77 - CENTER_W;
-        ctx.fillStyle = darkGray;
-        ctx.fillRect(left, y + 2, 926, TOHO_HISTORY_ROW_HEIGHT - 4);
-        ctx.strokeStyle = lightGray;
-        ctx.lineWidth = 8;
-        ctx.strokeRect(left + 4, y + 6, 918, TOHO_HISTORY_ROW_HEIGHT - 12);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = White;
-        ctx.font = '50px sans-serif';
-        ctx.fillText(String(row.index + 1) + '. ' + row.entry.days + '日 / ' +
-          (row.entry.distanceMeters / 1000) + 'km', 0,
-          y + TOHO_HISTORY_ROW_HEIGHT / 2, 860);
+      const layer = this.clippedLayer(75, 1005);
+      history.forEach(function (entry, index) {
+        const title = String(index + 1) + '. ' + entry.days + '日 / ' +
+          (entry.distanceMeters / 1000) + 'km';
+        const button = Button({ text: title, fontSize: 50, width: 926,
+          height: TOHO_HISTORY_ROW_HEIGHT, cornerRadius: 0,
+          fill: darkGray, stroke: lightGray, strokeWidth: 9 }).addChildTo(layer);
+        button.onpointend = function () {
+          if (self.dragMoved || self.view !== 'history') return;
+          SoundManager.play('select');
+          self.selected = entry;
+          self.inventoryOffset = 0;
+          self.view = 'historyDetail';
+          self.render();
+        };
+        self.addScrollRow(button, CENTER_W, index * TOHO_HISTORY_PITCH,
+          TOHO_HISTORY_ROW_HEIGHT, true);
       });
+      this.positionScrollRows();
       return;
     }
     if (this.view === 'historyDetail') {
       const entry = this.selected;
       if (!entry) { this.change('history'); return; }
-      this.panel(CENTER_W, 605, 980, 630);
+      // 上端を約半行下げ、下端を約1.5行上げて記録情報枠を縮小する。
+      this.panel(CENTER_W, 570, 980, 480);
       const stamp = entry.endedAt ? new Date(entry.endedAt).toLocaleString('ja-JP') : '記録日時なし';
       this.label('終了：' + stamp, 95, 385, 43, true);
       this.label('到達：' + (entry.distanceMeters / 1000) + 'km / ' + entry.days + '日', 95, 480, 49, true);
@@ -413,35 +406,35 @@ phina.define('Toho_archive_scene', {
       }
       const items = Array.isArray(entry.items) ? entry.items : [];
       this.label('死亡時の所持品（' + items.length + '種）', CENTER_W, 985, 52);
-      this.panel(CENTER_W, 1300, 960, 560); // クリップ領域より広い固定の背景枠。
+      this.panel(CENTER_W, 1300, 960, 560);
       const rows = [];
       let offset = 8;
       TOHO_ITEM_TYPES.forEach(function (type) {
-        rows.push({ kind: 'heading', text: '【' + type.name + '】', offset: offset });
+        rows.push({ type: type, heading: true, offset: offset, height: 90 });
         offset += 90;
         items.filter(function (item) { return item.category === type.id; }).forEach(function (item) {
-          rows.push({ kind: 'item', text: '・' + item.name + ' ×' + item.quantity, offset: offset });
+          rows.push({ item: item, offset: offset, height: 74 });
           offset += 74;
         });
         offset += 15;
       });
       this.beginScroll('inventory', offset + 8, 1045, 1550);
-      this.clippedList('inventory', 85, 990, rows, function (ctx, row, y) {
-        ctx.fillStyle = White;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.font = row.kind === 'heading' ? 'bold 47px sans-serif' : '44px sans-serif';
-        ctx.fillText(row.text, (row.kind === 'heading' ? 118 : 135) - CENTER_W,
-          y + (row.kind === 'heading' ? 43 : 36), 815);
-        if (row.kind === 'heading') {
-          ctx.strokeStyle = lightGray;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(115 - CENTER_W, y + 79);
-          ctx.lineTo(957 - CENTER_W, y + 79);
-          ctx.stroke();
+      const layer = this.clippedLayer(85, 990);
+      rows.forEach(function (row) {
+        const heading = row.heading;
+        const text = heading ? '【' + row.type.name + '】' :
+          '・' + row.item.name + ' ×' + row.item.quantity;
+        const item = Label({ text: text, fontSize: heading ? 47 : 44,
+          fill: White }).addChildTo(layer);
+        item.align = 'left';
+        self.addScrollRow(item, heading ? 118 : 135, row.offset, row.height, false);
+        if (heading) {
+          const line = RectangleShape({ width: 842, height: 2,
+            fill: lightGray, strokeWidth: 0 }).addChildTo(layer);
+          self.addScrollRow(line, CENTER_W, row.offset + 64, 2, false);
         }
       });
+      this.positionScrollRows();
     }
   },
   update: function (app) {
