@@ -24,12 +24,20 @@ const env = {
       json() { return Promise.resolve(fixtures[url]); },
     });
   },
-  Food(name, search, max, heal) { return { 名前: name, 探索入手: search, 最大入手数: max, 回復量: heal }; },
-  Weapon(name, attack) { return { 名前: name, 攻撃力: attack }; },
-  Tool(name) { return { 名前: name }; },
-  Material(name, tool, max) { return { 名前: name, 必要道具: tool, 最大入手数: max }; },
-  Recipe(product, cost, num, need) { return { 制作物: product, 制作気力: cost, 個数: num, 必要素材: need }; },
-  Enemy(name, hp, attack, drops, distance) { return { 名前: name, 体力: hp, 攻撃力: attack, ドロップ: drops, 出現距離: distance }; },
+  Food: function Food(name, search, max, heal) {
+    this.名前 = name; this.探索入手 = search; this.最大入手数 = max; this.回復量 = heal;
+  },
+  Weapon: function Weapon(name, attack) { this.名前 = name; this.攻撃力 = attack; },
+  Tool: function Tool(name) { this.名前 = name; },
+  Material: function Material(name, tool, max) {
+    this.名前 = name; this.必要道具 = tool; this.最大入手数 = max;
+  },
+  Recipe: function Recipe(product, cost, num, need) {
+    this.制作物 = product; this.制作気力 = cost; this.個数 = num; this.必要素材 = need;
+  },
+  Enemy: function Enemy(name, hp, attack, drops, distance) {
+    this.名前 = name; this.体力 = hp; this.攻撃力 = attack; this.ドロップ = drops; this.出現距離 = distance;
+  },
   Dices(dice, fixed) { return { ダイス: dice, 固定値: fixed }; },
 };
 vm.createContext(env);
