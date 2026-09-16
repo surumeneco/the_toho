@@ -117,10 +117,11 @@ function install_scene_backgrounds(app) {
     tryNext(0);
   });
 }
-/*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-    中央処理
-  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-phina.main(function () {
+
+function start_toho_game() {
+  if (!toho_data_is_ready()) {
+    throw new Error('ゲームデータの変換完了前に起動しようとしました。');
+  }
   var app = GameApp({
     width: SCREEN_W,
     height: SCREEN_H,
@@ -148,5 +149,23 @@ phina.main(function () {
   install_scene_backgrounds(app);
   install_achievement_notifications(app);
   app.run();
+}
+
+function show_data_load_error(error) {
+  console.error('ゲームデータの読み込みに失敗したため起動を中止しました。', error);
+  const failed = toho_data_failed_keys();
+  const notice = document.createElement('div');
+  notice.style.cssText = 'max-width:720px;padding:32px;color:white;background:#1e1e1e;font-family:sans-serif;line-height:1.7;text-align:center;';
+  notice.textContent = 'ゲームデータの読み込みに失敗しました。ページを再読み込みしてください。' +
+    (failed.length ? ' (' + failed.join(', ') + ')' : '');
+  document.body.appendChild(notice);
+}
+
+/*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    中央処理
+  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+phina.main(function () {
+  // JSON読み込みと変換が完了してからGameAppを生成する。図鑑や探索が空配列を参照する競合を防ぐ。
+  toho_data_ready.then(start_toho_game).catch(show_data_load_error);
 });
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
