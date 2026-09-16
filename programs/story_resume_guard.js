@@ -8,10 +8,14 @@ Story_scene.prototype.init = function (option) {
   if (!next) return;
   const advance = next.onpointend;
   next.onpointend = function () {
-    toho_story_restore_enemy();
-    if (!now_enemy || typeof now_enemy.item_drop !== 'function') {
-      scene._storyError.text = '敵データの読み込みを待っています。';
-      return;
+    const run = toho_story_run();
+    // Item, distance, sleep, etc. can return to a scene with no defeated enemy.
+    if (run && run.storyReturnScene === '勝利') {
+      toho_story_restore_enemy();
+      if (!now_enemy || typeof now_enemy.item_drop !== 'function') {
+        scene._storyError.text = '敵データの読み込みを待っています。';
+        return;
+      }
     }
     scene._storyError.text = '';
     return advance.call(this);
@@ -20,5 +24,8 @@ Story_scene.prototype.init = function (option) {
 const toho_story_base_reader_update = Story_scene.prototype.update;
 Story_scene.prototype.update = function (app) {
   toho_story_base_reader_update.call(this, app);
-  if (!this._storyReplay && this.storyId) toho_story_restore_enemy();
+  const run = toho_story_run();
+  if (!this._storyReplay && this.storyId && run && run.storyReturnScene === '勝利') {
+    toho_story_restore_enemy();
+  }
 };
