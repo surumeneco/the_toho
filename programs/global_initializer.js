@@ -31,7 +31,8 @@ let path = new URL("../", document.currentScript.src).href;
 // const version = "1.3.2"; // 2023/04/09 21:20
 // const version = '1.3.3'; // 2026/09/16 17:40 (JST・リリースコミット時刻)
 // const version = "1.4.0"; // 2026/09/17 05:37 (JST・リリース更新作業日時)
-const version = "1.4.1"; // 2026/09/17 (JST)
+// const version = "1.4.1"; // 2026/09/17 (JST)
+const version = "1.4.2"; // 2026/09/17 (JST)
 
 const SCREEN_W = 1080;
 const SCREEN_H = 1920;
@@ -86,6 +87,32 @@ var materials_is_loaded = loading(path + "datas/materials.json" + data_version, 
 var recipes_is_loaded = loading(path + "datas/recipes.json" + data_version, load_JSON, load_recipes);
 var enemies_is_loaded = loading(path + "datas/enemies.json" + data_version, load_JSON, load_enemies);
 var stories_is_loaded = loading(path + "datas/story.json" + data_version, load_JSON, load_stories);
+
+// タイトル画面を出す前に、ゲーム進行と図鑑に必要な全JSONの変換完了を待つ。
+const toho_data_load_states = {
+  foods: foods_is_loaded,
+  weapons: weapons_is_loaded,
+  tools: tools_is_loaded,
+  materials: materials_is_loaded,
+  recipes: recipes_is_loaded,
+  enemies: enemies_is_loaded,
+  stories: stories_is_loaded,
+};
+const toho_data_ready = Promise.all(Object.keys(toho_data_load_states).map(function (key) {
+  return toho_data_load_states[key].promise;
+}));
+function toho_data_is_ready()
+{
+  return Object.keys(toho_data_load_states).every(function (key) {
+    return toho_data_load_states[key].loaded === true;
+  });
+}
+function toho_data_failed_keys()
+{
+  return Object.keys(toho_data_load_states).filter(function (key) {
+    return toho_data_load_states[key].status === "failed";
+  });
+}
 
 const bgms = ["8bit26", "acoustic30", "acoustic31", "acoustic36", "acoustic44", "acoustic49", "acoustic50", "acoustic51", "ethnic30", "piano39"];
 function asset(name) {
@@ -173,7 +200,7 @@ function set_settings_cookies() {
   saved_music_volume = music_volume;
   saved_SE_volume = SE_volume;
 }
-// v1.4.1ではprogress_storage.jsが以下の進行保存・復元関数をlocalStorage実装へ置き換える。
+// v1.4.1以降はprogress_storage.jsが以下の進行保存・復元関数をlocalStorage実装へ置き換える。
 // ここでは旧進行Cookieへ新規データを書き込まない。
 function set_progress_cookies() {
   return false;
@@ -197,7 +224,7 @@ function get_settings_cookies() {
   saved_music_volume = music_volume;
   saved_SE_volume = SE_volume;
   SoundManager.setVolumeMusic(music_volume / 100);
-  SoundManager.setVolume(SE_volume / 100);
+  SoundManager.setVolume(se / 100);
 }
 // progress_storage.js読込前の互換用。通常起動では同ファイルによって上書きされる。
 function get_cookies() {
