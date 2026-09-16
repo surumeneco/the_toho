@@ -49,9 +49,10 @@ for (const file of ['achievement_definitions.js', 'achievements.js']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'programs', file), 'utf8'), env);
 }
 const run = code => vm.runInContext(code, env);
-assert.equal(run('TOHO_ACHIEVEMENT_DEFINITIONS.length'), 83);
-assert.equal(run('new Set(TOHO_ACHIEVEMENT_DEFINITIONS.map(x => x.id)).size'), 83);
+assert.equal(run('TOHO_ACHIEVEMENT_DEFINITIONS.length'), 89);
+assert.equal(run('new Set(TOHO_ACHIEVEMENT_DEFINITIONS.map(x => x.id)).size'), 89);
 assert.equal(run('TOHO_ACHIEVEMENT_DEFINITIONS.find(x => x.id === "ACH-035").target'), '石のナイフ');
+assert.equal(run('TOHO_ACHIEVEMENT_DEFINITIONS.find(x => x.id === "ACH-089").target'), 'all');
 assert.equal(run('toho_item_catalog().length'), 1);
 assert.equal(run('toho_meta.encyclopedia.itemIds[0]'), 'material:0001');
 assert.equal(run('toho_enemy_catalog()[1].id'), 'enemy:girl-stage-1');
@@ -77,4 +78,4 @@ const unlockedBeforeFailure = run('toho_meta.achievements.unlockedIds.length');
 env.toho_save_meta = () => false;
 assert.equal(run('toho_achievement_emit("obtained", { name: "魔術台", amount: 1 })'), false);
 assert.equal(run('toho_meta.achievements.unlockedIds.length'), unlockedBeforeFailure);
-console.log('PASS: 83 IDs, item and enemy identity, thresholds, idempotent distance, streaks, rollback');
+console.log('PASS: 89 IDs, item and enemy identity, thresholds, idempotent distance, streaks, rollback');
