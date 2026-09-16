@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="the-toho-version" content="1.4.0" />
+  <meta name="the-toho-version" content="1.4.1" />
   <title>THE 徒歩</title>
   <style>
     html, body {
@@ -58,6 +58,7 @@
         'programs/scenes/gameover_scene.js',
         'programs/scenes/story_scene.js',
         'programs/scenes/refresh_scene.js',
+        'programs/progress_storage.js',
         'programs/meta_progress.js',
         'programs/records_v2.js',
         'programs/save_safety.js',
@@ -122,7 +123,7 @@
       // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-confirm-notice-1');
+        url.searchParams.set('v', currentVersion + '-progress-storage-1');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
