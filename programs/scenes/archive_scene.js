@@ -1,4 +1,4 @@
-/* タイトルから閲覧する図鑑・最高記録・プレイ履歴。閲覧でプレイ状態は変更しない。 */
+/* タイトルからの図鑑・記録閲覧。プレイ状態には触れない。 */
 let toho_archive_entry = 'index';
 function toho_attack_text(attack) {
   if (!attack) return '不明';
@@ -8,7 +8,6 @@ function toho_attack_text(attack) {
 }
 function toho_percentage(known, total) { return total ? Math.floor(100 * known / total) : 0; }
 
-// タイトル本来の音量操作を維持し、閲覧ボタン上ではゲームを開始しない。
 phina.define('Toho_title_scene', {
   superClass: 'Title_scene',
   init: function (option) {
@@ -33,6 +32,7 @@ phina.define('Toho_title_scene', {
         SoundManager.play('select');
         self.exit('記録・図鑑');
       };
+    // 観覧ボタンで親シーンのスタート操作が発火しないようにする。
     this.clear('pointend');
     this.on('pointend', function (e) {
       const point = e.pointer;
@@ -48,12 +48,25 @@ phina.define('Toho_title_scene', {
   },
 });
 
-// 戦闘・探索・睡眠の記録処理は既存の接続を維持する。
 phina.define('Toho_battle_scene', {
   superClass: 'Battle_scene',
   init: function (option) {
     this.superInit(option);
     toho_note_encounter(this.敵);
+  },
+});
+phina.define('Toho_win_scene', {
+  superClass: 'Win_scene',
+  init: function (option) {
+    this.superInit(option);
+    toho_note_battle_outcome('victory');
+  },
+});
+phina.define('Toho_escape_scene', {
+  superClass: 'Escape_scene',
+  init: function (option) {
+    this.superInit(option);
+    toho_note_battle_outcome('escape');
   },
 });
 phina.define('Toho_search_scene', {
@@ -71,8 +84,10 @@ phina.define('Toho_sleep_scene', {
   },
 });
 
-const TOHO_SCROLL_TOP = 280;
-const TOHO_SCROLL_BOTTOM = 1540;
+const TOHO_HISTORY_TOP = 440;
+const TOHO_HISTORY_BOTTOM = 1550;
+const TOHO_HISTORY_PITCH = 148;
+const TOHO_HISTORY_ROW_HEIGHT = 120;
 
 phina.define('Toho_archive_scene', {
   superClass: 'DisplayScene',
@@ -90,21 +105,20 @@ phina.define('Toho_archive_scene', {
     this.inventoryOffset = 0;
     this.dropOffset = 0;
     this.scrollArea = null;
-    this.scrollRows = [];
     this.scrollActive = false;
     this.dragMoved = false;
     this.body = DisplayElement().addChildTo(this);
     this.lastCatalogSize = -1;
     this.render();
 
-    // 一覧内でだけスワイプを受け付ける。スクロール中の行タップは無効化する。
     this.on('pointstart', function (e) {
+      const area = this.scrollArea;
       const y = e.pointer.y;
-      this.scrollActive = !!this.scrollArea && y >= this.scrollArea.top && y <= this.scrollArea.bottom;
+      this.scrollActive = !!area && y >= area.top && y <= area.bottom;
       this.dragMoved = false;
       if (this.scrollActive) {
         this.scrollStartY = y;
-        this.scrollStartOffset = this.scrollArea.offset;
+        this.scrollStartOffset = area.offset;
       }
     });
     const move = function (e) {
@@ -112,17 +126,35 @@ phina.define('Toho_archive_scene', {
       const distance = e.pointer.y - this.scrollStartY;
       if (Math.abs(distance) > 12) this.dragMoved = true;
       if (!this.dragMoved) return;
-      this.scrollArea.offset = Math.max(0, Math.min(this.scrollArea.max, this.scrollStartOffset - distance));
+      const area = this.scrollArea;
+      area.offset = Math.max(0, Math.min(area.max, this.scrollStartOffset - distance));
       this.keepScrollOffset();
-      this.positionScrollRows();
+      this.positionScrollBar();
     };
     this.on('pointmove', move);
     this.on('pointstay', move);
-    this.on('pointend', function () { this.scrollActive = false; });
+    this.on('pointend', function (e) {
+      this.scrollActive = false;
+      if (this.view !== 'history' || this.dragMoved || !e.pointer) return;
+      const area = this.scrollArea;
+      const x = e.pointer.x;
+      const y = e.pointer.y;
+      if (!area || area.kind !== 'history' || x < 75 || x > 1005 ||
+        y < area.top || y > area.bottom) return;
+      const offset = y - area.top + area.offset;
+      const index = Math.floor(offset / TOHO_HISTORY_PITCH);
+      if (offset - index * TOHO_HISTORY_PITCH > TOHO_HISTORY_ROW_HEIGHT) return;
+      const entry = toho_meta.history[index];
+      if (!entry) return;
+      SoundManager.play('select');
+      this.selected = entry;
+      this.inventoryOffset = 0;
+      this.view = 'historyDetail';
+      this.render();
+    });
   },
   clearContent: function () {
     this.body.children.slice().forEach(function (child) { child.remove(); });
-    this.scrollRows = [];
     this.scrollArea = null;
     this.scrollBar = null;
     this.scrollActive = false;
@@ -152,9 +184,9 @@ phina.define('Toho_archive_scene', {
       fill: 'rgba(15, 15, 15, 0.88)', stroke: lightGray, strokeWidth: 6 })
       .addChildTo(this.body).setPosition(x, y);
   },
-  change: function (view, selected) {
+  change: function (view) {
     this.view = view;
-    this.selected = selected || null;
+    this.selected = null;
     this.page = 0;
     if (view === 'history') this.historyOffset = 0;
     this.render();
@@ -165,10 +197,8 @@ phina.define('Toho_archive_scene', {
       this.render();
     } else if (this.view === 'historyDetail') {
       this.view = 'history';
-      this.render(); // スクロール位置は保持する。
-    } else if (this.view === 'items') {
-      this.change('itemCategories');
-    } else if (this.view === 'itemCategories' || this.view === 'enemies') {
+      this.render(); // 一覧のスクロール位置は保持。
+    } else if (this.view === 'items' || this.view === 'enemies') {
       this.change('index');
     } else {
       this.exit('タイトル');
@@ -177,17 +207,17 @@ phina.define('Toho_archive_scene', {
   pages: function (length, size) {
     const self = this;
     const count = Math.max(1, Math.ceil(length / size));
-    this.label((this.page + 1) + ' / ' + count + 'ページ', CENTER_W, 1500, 44);
-    if (this.page > 0) this.button('前へ', 235, 1600, 295, 100, function () {
+    // ページ表示は前へ・次へと同じ高さ。
+    this.label((this.page + 1) + ' / ' + count + 'ページ', CENTER_W, 1610, 44);
+    if (this.page > 0) this.button('前へ', 230, 1610, 290, 100, function () {
       self.page--;
       self.render();
     }, 45);
-    if (this.page < count - 1) this.button('次へ', 840, 1600, 295, 100, function () {
+    if (this.page < count - 1) this.button('次へ', 850, 1610, 290, 100, function () {
       self.page++;
       self.render();
     }, 45);
   },
-  // 行はスクロール領域の完全に内側にある間だけ表示・操作可能にする。
   beginScroll: function (kind, contentHeight, top, bottom) {
     const saved = kind === 'history' ? this.historyOffset :
       kind === 'inventory' ? this.inventoryOffset : this.dropOffset;
@@ -196,8 +226,9 @@ phina.define('Toho_archive_scene', {
       offset: Math.min(saved, max), max: max, contentHeight: contentHeight };
     this.keepScrollOffset();
     if (max > 0) {
-      this.scrollBar = RectangleShape({ width: 14, height: 90,
+      this.scrollBar = RectangleShape({ width: 12, height: 85,
         fill: White, strokeWidth: 0, cornerRadius: 0 }).addChildTo(this.body);
+      this.positionScrollBar();
     }
   },
   keepScrollOffset: function () {
@@ -206,98 +237,70 @@ phina.define('Toho_archive_scene', {
     else if (this.scrollArea.kind === 'inventory') this.inventoryOffset = this.scrollArea.offset;
     else this.dropOffset = this.scrollArea.offset;
   },
-  addScrollRow: function (node, offset, height, x) {
-    this.scrollRows.push({ node: node, offset: offset, height: height, x: x || CENTER_W, isButton: !!node.interactive });
-  },
-  positionScrollRows: function () {
-    if (!this.scrollArea) return;
+  positionScrollBar: function () {
+    if (!this.scrollBar || !this.scrollArea || !this.scrollArea.max) return;
     const area = this.scrollArea;
-    this.scrollRows.forEach(function (row) {
-      const top = area.top + row.offset - area.offset;
-      const bottom = top + row.height;
-      const shown = top >= area.top - 0.5 && bottom <= area.bottom + 0.5;
-      row.node.setPosition(row.x, top + row.height / 2);
-      row.node.visible = shown;
-      if (row.isButton) row.node.interactive = shown;
-    });
-    if (this.scrollBar) {
-      const span = area.bottom - area.top;
-      const barHeight = Math.max(72, span * span / area.contentHeight);
-      this.scrollBar.height = barHeight;
-      this.scrollBar.setPosition(SCREEN_W - 24,
-        area.top + barHeight / 2 + (span - barHeight) * area.offset / area.max);
-    }
+    const span = area.bottom - area.top;
+    const height = Math.max(62, span * span / area.contentHeight);
+    this.scrollBar.height = height;
+    this.scrollBar.setPosition(SCREEN_W - 29,
+      area.top + height / 2 + (span - height) * area.offset / area.max);
   },
-  inventoryRow: function (item, type, offset) {
-    const height = type.id === 'food' || type.id === 'weapon' ? 126 : 92;
-    const group = DisplayElement().addChildTo(this.body);
-    RectangleShape({ width: 940, height: height - 5,
-      fill: darkGray, stroke: lightGray, strokeWidth: 4 }).addChildTo(group);
-    const title = Label({ text: item.name + ' ×' + item.quantity, fontSize: 45, fill: White })
-      .addChildTo(group);
-    title.align = 'left';
-    title.setPosition(-430, height === 126 ? -28 : 0);
-    const data = toho_find_item(item.name, type.id);
-    if (data && type.id === 'food') {
-      const detail = Label({ text: '気力回復：' + data.data.回復量,
-        fontSize: 39, fill: White }).addChildTo(group);
-      detail.align = 'left'; detail.setPosition(-430, 34);
-    } else if (data && type.id === 'weapon') {
-      const detail = Label({ text: '攻撃力：' + toho_attack_text(data.data.攻撃力),
-        fontSize: 39, fill: White }).addChildTo(group);
-      detail.align = 'left'; detail.setPosition(-430, 34);
-    }
-    this.addScrollRow(group, offset, height);
-    return height;
+  // 全行を通常描画し、Canvasクリップで枠外だけを非表示にする（仮想スクロールしない）。
+  clippedList: function (kind, left, right, rows, painter) {
+    const scene = this;
+    const layer = DisplayElement({ width: SCREEN_W, height: SCREEN_H }).addChildTo(this.body);
+    layer.setPosition(CENTER_W, CENTER_H);
+    layer.interactive = false;
+    layer.draw = function (canvas) {
+      const area = scene.scrollArea;
+      if (!area || area.kind !== kind) return;
+      const context = canvas.context;
+      context.save();
+      context.beginPath();
+      context.rect(left - CENTER_W, area.top - CENTER_H,
+        right - left, area.bottom - area.top);
+      context.clip();
+      rows.forEach(function (row) {
+        painter(context, row, area.top + row.offset - area.offset - CENTER_H);
+      });
+      context.restore();
+    };
   },
   render: function () {
     this.clearContent();
     const self = this;
     const rates = toho_discovery_rates();
     this.lastCatalogSize = rates.grandTotal;
-    const type = TOHO_ITEM_TYPES.find(function (entry) { return entry.id === self.itemType; });
+    const itemType = TOHO_ITEM_TYPES.find(function (type) { return type.id === self.itemType; });
     const titles = {
-      index: '図鑑', itemCategories: 'アイテム図鑑',
-      items: type ? type.name + '図鑑' : 'アイテム図鑑', enemies: '敵図鑑',
-      itemDetail: 'アイテム詳細', enemyDetail: '敵の詳細',
-      history: 'プレイ履歴', historyDetail: 'プレイ履歴の詳細',
+      index: '図鑑', items: itemType ? itemType.name + '図鑑' : 'アイテム図鑑',
+      enemies: '敵図鑑', itemDetail: 'アイテム詳細', enemyDetail: '敵の詳細',
+      history: 'プレイ履歴', historyDetail: 'プレイ記録の詳細',
     };
-    this.panel(CENTER_W, 145, SCREEN_W - 35, 265);
-    this.label(titles[this.view] || '記録', CENTER_W, 85, 78);
+    this.panel(CENTER_W, 165, SCREEN_W - 35, 235);
+    this.label(titles[this.view] || '記録', CENTER_W, 160, 78);
     this.button('戻る', 830, 1800, 350, 115, function () { self.goBack(); });
     this.label('バージョン：' + version, 25, 1900, 33, true);
 
     if (this.view === 'index') {
-      this.panel(CENTER_W, 585, 940, 500);
       this.label('総合解放率：' + rates.total + '/' + rates.grandTotal + '（' +
-        toho_percentage(rates.total, rates.grandTotal) + '%）', CENTER_W, 440, 48);
-      this.label('アイテム：' + rates.items + '/' + rates.itemTotal + '（' +
-        toho_percentage(rates.items, rates.itemTotal) + '%）', CENTER_W, 585, 48);
-      this.label('敵：' + rates.enemies + '/' + rates.enemyTotal + '（' +
-        toho_percentage(rates.enemies, rates.enemyTotal) + '%）', CENTER_W, 730, 48);
-      this.button('アイテム図鑑', CENTER_W, 950, 790, 160, function () {
-        self.change('itemCategories');
-      }, 58);
-      this.button('敵図鑑', CENTER_W, 1180, 790, 160, function () {
-        self.change('enemies');
-      }, 58);
-      return;
-    }
-    if (this.view === 'itemCategories') {
-      this.label('アイテム全体：' + rates.items + '/' + rates.itemTotal + '（' +
-        toho_percentage(rates.items, rates.itemTotal) + '%）', CENTER_W, 195, 44);
+        toho_percentage(rates.total, rates.grandTotal) + '%）', CENTER_W, 355, 49);
       const entries = toho_item_catalog();
       const knownIds = new Set(toho_meta.encyclopedia.itemIds);
-      TOHO_ITEM_TYPES.forEach(function (itemType, index) {
-        const categoryEntries = entries.filter(function (entry) { return entry.type === itemType.id; });
-        const known = categoryEntries.filter(function (entry) { return knownIds.has(entry.id); }).length;
-        self.button(itemType.name + '：' + known + '/' + categoryEntries.length + '（' +
-          toho_percentage(known, categoryEntries.length) + '%）',
-          CENTER_W, 440 + index * 285, 940, 145, function () {
-            self.itemType = itemType.id;
+      TOHO_ITEM_TYPES.forEach(function (type, index) {
+        const category = entries.filter(function (entry) { return entry.type === type.id; });
+        const known = category.filter(function (entry) { return knownIds.has(entry.id); }).length;
+        self.button(type.name + '図鑑　' + known + '/' + category.length + '（' +
+          toho_percentage(known, category.length) + '%）',
+          CENTER_W, 540 + index * 230, 940, 144, function () {
+            self.itemType = type.id;
             self.change('items');
-          }, 50);
+          }, 47);
       });
+      this.button('敵図鑑　' + rates.enemies + '/' + rates.enemyTotal + '（' +
+        toho_percentage(rates.enemies, rates.enemyTotal) + '%）',
+        CENTER_W, 1460, 940, 144, function () { self.change('enemies'); }, 47);
       return;
     }
     if (this.view === 'items' || this.view === 'enemies') {
@@ -306,16 +309,11 @@ phina.define('Toho_archive_scene', {
         return entry.type === self.itemType;
       }) : toho_enemy_catalog();
       const unlocked = new Set(isItem ? toho_meta.encyclopedia.itemIds : toho_meta.encyclopedia.enemyIds);
-      const total = entries.length;
-      const known = entries.filter(function (entry) { return unlocked.has(entry.id); }).length;
-      this.label('解放：' + known + '/' + total + '（' + toho_percentage(known, total) + '%）',
-        CENTER_W, 195, 45);
-      if (!total) this.label('データを読み込み中です。', CENTER_W, 730, 46);
+      if (!entries.length) this.label('データを読み込み中です。', CENTER_W, 730, 46);
       entries.slice(this.page * 8, this.page * 8 + 8).forEach(function (entry, index) {
         const found = unlocked.has(entry.id);
-        const title = found ? entry.name : '？？？';
-        const text = String(self.page * 8 + index + 1) + '. ' + title;
-        const button = self.button(text, CENTER_W, 355 + index * 143, 955, 118, function () {
+        const title = String(self.page * 8 + index + 1) + '. ' + (found ? entry.name : '？？？');
+        const button = self.button(title, CENTER_W, 365 + index * 143, 955, 118, function () {
           if (!found) return;
           self.parentView = self.view;
           self.selected = entry;
@@ -328,7 +326,7 @@ phina.define('Toho_archive_scene', {
           button.onpointend = function () {};
         }
       });
-      this.pages(total, 8);
+      this.pages(entries.length, 8);
       return;
     }
     if (this.view === 'itemDetail' || this.view === 'enemyDetail') {
@@ -351,98 +349,103 @@ phina.define('Toho_archive_scene', {
         this.label('ドロップ候補（最大入手数）：', 110, 865, 43, true);
         if (!drops.length) this.label('なし', 125, 975, 43, true);
         if (drops.length) {
-          const top = 930;
-          const bottom = 1550;
-          const pitch = 82;
-          const height = 72;
-          this.beginScroll('drops', drops.length * pitch - (pitch - height), top, bottom);
-          drops.forEach(function (drop, index) {
-            const group = DisplayElement().addChildTo(self.body);
-            RectangleShape({ width: 935, height: height - 4, fill: darkGray,
-              stroke: lightGray, strokeWidth: 4 }).addChildTo(group);
-            const label = Label({ text: '・' + drop[0] + ' ×最大' + drop[1],
-              fontSize: 43, fill: White }).addChildTo(group);
-            label.align = 'left';
-            label.setPosition(-422, 0);
-            self.addScrollRow(group, index * pitch, height);
+          const rows = drops.map(function (drop, index) {
+            return { name: drop[0], amount: drop[1], offset: index * 84 };
           });
-          this.positionScrollRows();
+          this.beginScroll('drops', rows.length * 84, 935, 1545);
+          this.clippedList('drops', 105, 980, rows, function (ctx, row, y) {
+            ctx.fillStyle = White;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.font = '44px sans-serif';
+            ctx.fillText('・' + row.name + '　最大' + row.amount,
+              125 - CENTER_W, y + 42, 825);
+          });
         }
       }
       return;
     }
     if (this.view === 'history') {
       const history = toho_meta.history;
-      this.label('死亡時の記録（最新10件） / ' + history.length + '件', CENTER_W, 195, 44);
+      // 見出しはヘッダー枠の外側、背景を追加せず表示する。
+      this.label('死亡時の記録（最新10件） / ' + history.length + '件', CENTER_W, 350, 44);
       if (!history.length) {
         this.label('記録はまだありません。', CENTER_W, 700, 52);
         return;
       }
-      const pitch = 145;
-      const height = 122;
-      this.beginScroll('history', history.length * pitch - (pitch - height),
-        TOHO_SCROLL_TOP, TOHO_SCROLL_BOTTOM);
-      history.forEach(function (entry, i) {
-        const title = String(i + 1) + '. ' + entry.days + '日 / ' +
-          (entry.distanceMeters / 1000) + 'km';
-        const button = self.button(title, CENTER_W, 0, 940, height, function () {
-          self.selected = entry;
-          self.inventoryOffset = 0;
-          self.view = 'historyDetail';
-          self.render();
-        }, 50);
-        self.addScrollRow(button, i * pitch, height);
+      const rows = history.map(function (entry, index) {
+        return { entry: entry, index: index, offset: index * TOHO_HISTORY_PITCH };
       });
-      this.positionScrollRows();
+      this.beginScroll('history', rows.length * TOHO_HISTORY_PITCH,
+        TOHO_HISTORY_TOP, TOHO_HISTORY_BOTTOM);
+      this.clippedList('history', 75, 1005, rows, function (ctx, row, y) {
+        const left = 77 - CENTER_W;
+        ctx.fillStyle = darkGray;
+        ctx.fillRect(left, y + 2, 926, TOHO_HISTORY_ROW_HEIGHT - 4);
+        ctx.strokeStyle = lightGray;
+        ctx.lineWidth = 8;
+        ctx.strokeRect(left + 4, y + 6, 918, TOHO_HISTORY_ROW_HEIGHT - 12);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = White;
+        ctx.font = '50px sans-serif';
+        ctx.fillText(String(row.index + 1) + '. ' + row.entry.days + '日 / ' +
+          (row.entry.distanceMeters / 1000) + 'km', 0,
+          y + TOHO_HISTORY_ROW_HEIGHT / 2, 860);
+      });
       return;
     }
     if (this.view === 'historyDetail') {
       const entry = this.selected;
       if (!entry) { this.change('history'); return; }
-      // 記録情報枠を従来より1行分下げる。
-      this.panel(CENTER_W, 565, 980, 540);
+      this.panel(CENTER_W, 605, 980, 630);
       const stamp = entry.endedAt ? new Date(entry.endedAt).toLocaleString('ja-JP') : '記録日時なし';
       this.label('終了：' + stamp, 95, 385, 43, true);
       this.label('到達：' + (entry.distanceMeters / 1000) + 'km / ' + entry.days + '日', 95, 480, 49, true);
       this.label('死因：' + toho_cause_text(entry.deathCause), 95, 575, 42, true);
-      this.label('戦闘回数：' + entry.battleCount + '回', 95, 670, 46, true);
+      if (entry.recordVersion === 2) {
+        this.label('戦闘回数（勝利）：' + entry.battleCount + '回', 95, 670, 45, true);
+        this.label('逃走回数：' + entry.escapeCount + '回', 95, 765, 45, true);
+      } else {
+        // 以前の履歴は戦闘開始数しか記録しておらず勝敗を復元できない。
+        this.label('戦闘回数（旧・開始数）：' + entry.battleCount + '回', 95, 670, 42, true);
+        this.label('逃走回数：記録なし（旧仕様）', 95, 765, 42, true);
+      }
       const items = Array.isArray(entry.items) ? entry.items : [];
-      this.label('死亡時の所持品（' + items.length + '種）', CENTER_W, 885, 52);
-      const top = 955;
-      const bottom = 1550;
-      let offset = 0;
+      this.label('死亡時の所持品（' + items.length + '種）', CENTER_W, 985, 52);
+      this.panel(CENTER_W, 1300, 960, 560); // クリップ領域より広い固定の背景枠。
       const rows = [];
-      TOHO_ITEM_TYPES.forEach(function (itemType) {
-        rows.push({ type: itemType, heading: true, offset: offset, height: 94 });
-        offset += 103;
-        items.filter(function (item) { return item.category === itemType.id; }).forEach(function (item) {
-          const height = itemType.id === 'food' || itemType.id === 'weapon' ? 126 : 92;
-          rows.push({ type: itemType, item: item, offset: offset, height: height });
-          offset += height + 10;
+      let offset = 8;
+      TOHO_ITEM_TYPES.forEach(function (type) {
+        rows.push({ kind: 'heading', text: '【' + type.name + '】', offset: offset });
+        offset += 90;
+        items.filter(function (item) { return item.category === type.id; }).forEach(function (item) {
+          rows.push({ kind: 'item', text: '・' + item.name + ' ×' + item.quantity, offset: offset });
+          offset += 74;
         });
-        offset += 20;
+        offset += 15;
       });
-      this.beginScroll('inventory', Math.max(0, offset - 30), top, bottom);
-      rows.forEach(function (row) {
-        if (row.heading) {
-          const group = DisplayElement().addChildTo(self.body);
-          RectangleShape({ width: 940, height: 90,
-            fill: 'rgba(15, 15, 15, 0.9)', stroke: lightGray, strokeWidth: 5 })
-            .addChildTo(group);
-          Label({ text: '【' + row.type.name + '】', fontSize: 48, fill: White })
-            .addChildTo(group).setPosition(0, 0);
-          self.addScrollRow(group, row.offset, row.height);
-        } else {
-          self.inventoryRow(row.item, row.type, row.offset);
+      this.beginScroll('inventory', offset + 8, 1045, 1550);
+      this.clippedList('inventory', 85, 990, rows, function (ctx, row, y) {
+        ctx.fillStyle = White;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = row.kind === 'heading' ? 'bold 47px sans-serif' : '44px sans-serif';
+        ctx.fillText(row.text, (row.kind === 'heading' ? 118 : 135) - CENTER_W,
+          y + (row.kind === 'heading' ? 43 : 36), 815);
+        if (row.kind === 'heading') {
+          ctx.strokeStyle = lightGray;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(115 - CENTER_W, y + 79);
+          ctx.lineTo(957 - CENTER_W, y + 79);
+          ctx.stroke();
         }
       });
-      this.positionScrollRows();
-      return;
     }
   },
   update: function (app) {
     bgm_check(app);
-    // JSONの読み込みがタイトル表示より遅い場合、解放率・一覧を再構築する。
     if (this.lastCatalogSize !== toho_discovery_rates().grandTotal &&
       this.view !== 'itemDetail' && this.view !== 'enemyDetail' && this.view !== 'historyDetail') {
       this.render();
