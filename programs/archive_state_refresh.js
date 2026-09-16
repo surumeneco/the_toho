@@ -1,4 +1,4 @@
-/* v1.4.1: 図鑑の解放状態変更を項目数の変化とは独立して画面へ反映する。 */
+/* v1.4.2: 図鑑の解放状態変更を項目数の変化とは独立して画面へ反映する。 */
 function toho_encyclopedia_state_signature() {
   const rates = toho_discovery_rates();
   const itemIds = Array.from(new Set(toho_meta.encyclopedia.itemIds || [])).sort();
@@ -6,8 +6,17 @@ function toho_encyclopedia_state_signature() {
   return [rates.grandTotal, rates.total, itemIds.join(','), enemyIds.join(',')].join('|');
 }
 
+function toho_sync_encyclopedia_before_render() {
+  // 取得時フックを取りこぼした既存セーブも、図鑑を開いた時点の所持品から復元する。
+  // 通常セーブ時の checkpoint と同じ走査をここでも行う。
+  if (typeof toho_scan_inventory === 'function') toho_scan_inventory();
+}
+
 const toho_archive_state_original_render = Toho_archive_scene_v14.prototype.render;
 Toho_archive_scene_v14.prototype.render = function () {
+  if (this.view === 'index' || this.view === 'items' || this.view === 'enemies') {
+    toho_sync_encyclopedia_before_render();
+  }
   const result = toho_archive_state_original_render.apply(this, arguments);
   this._encyclopediaStateSignature = toho_encyclopedia_state_signature();
   return result;
