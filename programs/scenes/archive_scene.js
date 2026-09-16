@@ -388,7 +388,8 @@ phina.define('Toho_archive_scene', {
       const contentHeight = TOHO_HISTORY_INSET * 2 + TOHO_HISTORY_ROW_HEIGHT +
         (history.length - 1) * TOHO_HISTORY_PITCH;
       this.beginScroll('history', contentHeight, TOHO_HISTORY_TOP, TOHO_HISTORY_BOTTOM);
-      const layer = this.clippedLayer(75, 1005);
+      // 幅方向も枠線の外側まで確保してクリップする。
+      const layer = this.clippedLayer(60, 1020);
       history.forEach(function (entry, index) {
         const title = String(index + 1) + '. ' + entry.days + '日 / ' +
           (entry.distanceMeters / 1000) + 'km';
