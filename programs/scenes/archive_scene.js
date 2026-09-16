@@ -71,7 +71,7 @@ phina.define('Toho_sleep_scene', {
   },
 });
 
-const TOHO_SCROLL_TOP = 325;
+const TOHO_SCROLL_TOP = 280;
 const TOHO_SCROLL_BOTTOM = 1540;
 
 phina.define('Toho_archive_scene', {
