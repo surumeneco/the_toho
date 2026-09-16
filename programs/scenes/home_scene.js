@@ -193,6 +193,7 @@ phina.define("Home_scene",
     showAbandonDialog: function ()
     {
       if (this._abandonDialog) return;
+      SoundManager.play("select");
       var scene = this;
       var controls = this.children.filter(function (child) { return child.interactive; });
       controls.forEach(function (control) { control.interactive = false; });
