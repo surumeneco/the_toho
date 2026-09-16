@@ -19,7 +19,7 @@ toho_death_cause = function (run) {
   return { type: 'exploration_sp' };
 };
 
-// 既存画面の余白は上下各20px。制作一覧の下端にも同量を確保する。
+// 制作後の一覧更新だけスクロール位置を保持する。検索・道具切替は従来通り先頭から表示。
 phina.define('Toho_craft_scene_v14', {
   superClass: 'Craft_scene',
   init: function (option) {
@@ -27,9 +27,55 @@ phina.define('Toho_craft_scene_v14', {
     this.superInit(option);
   },
   scroll_content_height: function () {
+    // 既存画面の上側余白20pxと同量を最下部にも確保する。
     return Craft_scene.prototype.scroll_content_height.call(this) + this.上下余白;
   },
+  rebuild_recipe_list: function () {
+    const preserve = this._preserveCraftScroll === true;
+    const previousPosition = preserve ? this.始端位置 : null;
+    this._preserveCraftScroll = false;
+    Craft_scene.prototype.rebuild_recipe_list.call(this);
+    if (preserve) {
+      // 作れるレシピ数が変わった場合は、新しいスクロール範囲内に収める。
+      this.始端位置 = this.clamp_scroll(previousPosition);
+      this.set_recipes_pos();
+    }
+  },
+  update: function (app) {
+    if (is_reload) this._preserveCraftScroll = true;
+    Craft_scene.prototype.update.call(this, app);
+  },
 });
+
+// 背景画像はscene.childrenの先頭に追加されるため、武器IDをchildrenの添字に使えない。
+// 既存の戦闘進行は維持し、破損時に除去された無関係な表示を復元して武器だけを取り除く。
+const toho_original_battle_update = Battle_scene.prototype.update;
+Toho_battle_scene.prototype.update = function (app) {
+  const index = this.choosed_weapon;
+  const selected = this.attacks[index];
+  const name = selected && selected.武器.名前;
+  const lastCopy = this.戦闘フェイズ === '敵にダメージ' && index > 0 &&
+    selected && player.has_item(name) === 1;
+  const previousChildren = lastCopy ? this.children.slice() : null;
+  toho_original_battle_update.call(this, app);
+  if (!lastCopy || !this.is_weapon_lost || player.has_item(name) > 0) return;
+
+  // 旧処理が消した要素を元の描画順で戻す（背景や別武器を誤消去しない）。
+  const missing = previousChildren.find(function (child) {
+    return this.children.indexOf(child) === -1;
+  }, this);
+  if (missing && missing !== selected) {
+    this.children.splice(previousChildren.indexOf(missing), 0, missing);
+  }
+  if (this.children.indexOf(selected) !== -1) selected.remove();
+
+  // 攻撃候補とボタンIDを同時更新し、次に別の武器が壊れても正しく対応させる。
+  this.attacks.splice(index, 1);
+  this.attacks.forEach(function (button, position) { button.ID = position; });
+  this.choosed_weapon = 0;
+  this.past_choosed_weapon = -1;
+  this.set_attacks_pos();
+};
 
 // 追加の入口は仮実装：選択音だけを再生し、新規プレイは開始しない。
 phina.define('Toho_title_scene_v14', {
@@ -73,6 +119,15 @@ phina.define('Toho_archive_scene_v14', {
   render: function () {
     Toho_archive_scene.prototype.render.call(this);
     const self = this;
+    // 他の画面と同様、左下から25px、下揃え、標準32pxでバージョンを表示する。
+    const versionLabel = this.body.children.find(function (child) {
+      return child.text === 'バージョン：' + version;
+    });
+    if (versionLabel) {
+      versionLabel.fontSize = 32;
+      versionLabel.baseline = 'bottom';
+      versionLabel.setPosition(25, SCREEN_H - 25);
+    }
     // 履歴は元々先頭・末尾とも18pxの余白がある。候補・所持品にも対称な余白を付ける。
     const area = this.scrollArea;
     if (area && (area.kind === 'drops' || area.kind === 'inventory') && this.scrollRows.length) {
