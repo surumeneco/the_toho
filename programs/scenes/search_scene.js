@@ -45,6 +45,8 @@ phina.define("Search_scene",
         set_cookies();
         SoundManager.play("gameover");
         this.exit("ゲームオーバー");
+        // 死亡後にさらに戦闘・入手へ遷移すると履歴が保存されない。
+        return;
       }
 
       var temp = Math.floor(Math.random() * 100);
@@ -66,4 +68,3 @@ phina.define("Search_scene",
   }
 );
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-
