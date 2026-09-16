@@ -29,7 +29,7 @@ let path = new URL('../', document.currentScript.src).href;
 // const version = "1.3.0"; // 2023/04/09 14:45
 // const version = "1.3.1"; // 2023/04/09 18:10
 // const version = "1.3.2"; // 2023/04/09 21:20
-const version = '1.3.3'; // 2026/09/16
+const version = '1.3.3'; // 2026/09/16 17:40 (JST・リリースコミット時刻)
 
 const SCREEN_W = 1080;
 const SCREEN_H = 1920;
