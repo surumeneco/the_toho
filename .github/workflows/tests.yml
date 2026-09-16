@@ -18,6 +18,10 @@ jobs:
           node-version: '22'
       - name: Progress save regressions
         run: node tests/progress_storage.test.js
+      - name: Core data loading
+        run: node tests/data_loading.test.js
+      - name: Encyclopedia discovery persistence
+        run: node tests/encyclopedia_runtime.test.js
       - name: Encyclopedia state refresh
         run: node tests/archive_state_refresh.test.js
       - name: Achievement regressions
