@@ -30,7 +30,8 @@ let path = new URL("../", document.currentScript.src).href;
 // const version = "1.3.1"; // 2023/04/09 18:10
 // const version = "1.3.2"; // 2023/04/09 21:20
 // const version = '1.3.3'; // 2026/09/16 17:40 (JST・リリースコミット時刻)
-const version = "1.4.0"; // 2026/09/17 05:37 (JST・リリース更新作業日時)
+// const version = "1.4.0"; // 2026/09/17 05:37 (JST・リリース更新作業日時)
+const version = "1.4.1"; // 2026/09/17 (JST)
 
 const SCREEN_W = 1080;
 const SCREEN_H = 1920;
@@ -121,7 +122,7 @@ var ASSETS = {
 };
 
 function bgm_check(app) {
-  // タイトル画面のスライダー変更も、次フレームで設定Cookieに保存する。
+  // タイトル画面のスライダー変更も、次フレームで設定を保存する。
   if (music_volume !== saved_music_volume || SE_volume !== saved_SE_volume) {
     set_settings_cookies();
   }
@@ -143,7 +144,7 @@ function bgm_check(app) {
   }
 }
 
-// 設定Cookieと進行状況Cookieは、保存・削除の単位を分離する。
+// Cookie操作は設定の旧形式移行・バージョン判定・v1.4.0以前の進行セーブ移行に使用する。
 const cookie_options = "; Max-Age=2592000; Path=" + new URL(path).pathname + "; SameSite=Lax";
 function read_cookie(name) {
   const prefix = name + "=";
@@ -172,6 +173,7 @@ function set_settings_cookies() {
   saved_music_volume = music_volume;
   saved_SE_volume = SE_volume;
 }
+// v1.4.1ではprogress_storage.jsが以下の進行保存・復元関数をlocalStorage実装へ置き換える。
 function set_progress_cookies() {
   write_cookie("storydata", story_num);
   write_cookie("playingdata", JSON.stringify(player));
