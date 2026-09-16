@@ -1,4 +1,4 @@
-/* v1.4.1: プレイ進行をCookieからlocalStorageへ移行する。 */
+/* v1.4.3: プレイ進行はlocalStorageだけで管理する。Cookie互換は行わない。 */
 const TOHO_PROGRESS_KEY = 'the_toho:progress:v1';
 const TOHO_PROGRESS_SCHEMA_VERSION = 1;
 
@@ -45,36 +45,9 @@ function toho_remove_progress_local() {
   }
 }
 
-function toho_clear_legacy_progress_cookies() {
-  remove_cookie('storydata');
-  remove_cookie('playingdata');
-}
-
-function toho_read_legacy_progress() {
-  const savedPlay = read_cookie('playingdata');
-  if (savedPlay === null) return null;
-  try {
-    const savedStory = read_cookie('storydata');
-    return {
-      schemaVersion: TOHO_PROGRESS_SCHEMA_VERSION,
-      storyNum: savedStory !== null && /^\d+$/.test(savedStory) ? Number(savedStory) : 0,
-      player: JSON.parse(savedPlay),
-    };
-  } catch (error) {
-    console.warn('旧Cookieのプレイデータを解析できませんでした。削除せず保持します。', error);
-    return null;
-  }
-}
-
 function toho_read_progress_data() {
   const current = toho_read_progress_local();
-  if (current !== undefined) return current;
-
-  // v1.4.0以前のCookieセーブは初回読込時にlocalStorageへ移行する。
-  const legacy = toho_read_legacy_progress();
-  if (legacy === null) return null;
-  if (toho_write_progress_local(legacy)) toho_clear_legacy_progress_cookies();
-  return legacy;
+  return current === undefined ? null : current;
 }
 
 function toho_restore_saved_player(savedPlayer) {
@@ -88,20 +61,19 @@ function toho_restore_saved_player(savedPlayer) {
   }
 }
 
-// 関数名は既存呼出しとの互換性のため維持するが、進行データはCookieへ書かない。
+// 既存シーンからの呼出し名は維持するが、実体はlocalStorageのみ。
 set_progress_cookies = function () {
-  const saved = toho_write_progress_local({
+  return toho_write_progress_local({
     schemaVersion: TOHO_PROGRESS_SCHEMA_VERSION,
     storyNum: Number.isFinite(Number(story_num)) ? Number(story_num) : 0,
     player: player,
   });
-  if (saved) toho_clear_legacy_progress_cookies();
-  return saved;
 };
 
 set_cookies = function () {
-  set_settings_cookies();
-  return set_progress_cookies();
+  const settingsSaved = set_settings_cookies();
+  const progressSaved = set_progress_cookies();
+  return settingsSaved !== false && progressSaved;
 };
 
 get_cookies = function () {
@@ -120,7 +92,6 @@ get_cookies = function () {
 
 delete_cookies = function () {
   if (!toho_remove_progress_local()) return false;
-  toho_clear_legacy_progress_cookies();
   story_num = 0;
   return true;
 };
