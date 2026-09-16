@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="the-toho-version" content="1.4.2" />
+  <meta name="the-toho-version" content="1.4.3" />
   <title>THE 徒歩</title>
   <style>
     html, body {
@@ -31,7 +31,8 @@
     (async function () {
       const currentVersion = document.querySelector('meta[name="the-toho-version"]').content;
       const base = new URL('./', window.location.href);
-      const cookiePath = base.pathname;
+      const gamePath = base.pathname;
+      const assetVersionKey = 'the_toho:asset-version';
       const scriptFiles = [
         'frameworks/colors_HEX.js',
         'frameworks/colors_String.js',
@@ -60,14 +61,15 @@
         'programs/scenes/refresh_scene.js',
         'programs/progress_storage.js',
         'programs/meta_progress.js',
+        'programs/localstorage_only.js',
         'programs/records_v2.js',
         'programs/save_safety.js',
         'programs/scenes/archive_scene.js',
         'programs/archive_controls.js',
         'programs/achievement_definitions.js',
         'programs/achievements.js',
+        'programs/encyclopedia_catalog.js',
         'programs/catalog_achievements.js',
-        'programs/archive_state_refresh.js',
         'programs/achievement_ui_integration.js',
         'programs/story_definitions.js',
         'programs/story_system.js',
@@ -75,6 +77,7 @@
         'programs/story_trigger_engine.js',
         'programs/story_ui_extensions.js',
         'programs/confirmation_and_notice.js',
+        'programs/archive_scene_v143.js',
         'programs/main.js',
         'programs/story_background_override.js'
       ];
@@ -100,8 +103,12 @@
         console.warn('バージョン確認に失敗しました。現在のバージョンで起動します。', error);
       }
 
-      const savedVersion = document.cookie.split('; ').find(entry => entry.startsWith('version='));
-      const previousVersion = savedVersion ? decodeURIComponent(savedVersion.substring('version='.length)) : null;
+      let previousVersion = null;
+      try {
+        previousVersion = window.localStorage.getItem(assetVersionKey);
+      } catch (error) {
+        console.warn('保存済みアセットバージョンを読み取れませんでした。', error);
+      }
       if (previousVersion !== currentVersion && 'caches' in window) {
         // 同一オリジンの別アプリに影響させず、本ゲームに属するCacheStorageだけを削除する。
         try {
@@ -109,7 +116,7 @@
             const cache = await caches.open(cacheName);
             for (const request of await cache.keys()) {
               const url = new URL(request.url);
-              if (url.origin === base.origin && url.pathname.startsWith(cookiePath)) {
+              if (url.origin === base.origin && url.pathname.startsWith(gamePath)) {
                 await cache.delete(request);
               }
             }
@@ -118,8 +125,11 @@
           console.warn('キャッシュの削除に失敗しました。バージョン付きURLから読み込みます。', error);
         }
       }
-      document.cookie = 'version=' + encodeURIComponent(currentVersion)
-        + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
+      try {
+        window.localStorage.setItem(assetVersionKey, currentVersion);
+      } catch (error) {
+        console.warn('アセットバージョンを保存できませんでした。', error);
+      }
 
       for (const file of scriptFiles) {
         const url = new URL(file, base);
