@@ -174,19 +174,20 @@ function set_settings_cookies() {
   saved_SE_volume = SE_volume;
 }
 // v1.4.1ではprogress_storage.jsが以下の進行保存・復元関数をlocalStorage実装へ置き換える。
+// ここでは旧進行Cookieへ新規データを書き込まない。
 function set_progress_cookies() {
-  write_cookie("storydata", story_num);
-  write_cookie("playingdata", JSON.stringify(player));
+  return false;
 }
 function set_cookies() {
   set_settings_cookies();
-  set_progress_cookies();
+  return set_progress_cookies();
 }
 // ゲームオーバーと「諦める」はプレイ情報だけ消す。音量・バージョンは残す。
 function delete_cookies() {
   remove_cookie("storydata");
   remove_cookie("playingdata");
   story_num = 0;
+  return true;
 }
 function get_settings_cookies() {
   const bgm = Number(read_cookie("BGM"));
@@ -198,6 +199,7 @@ function get_settings_cookies() {
   SoundManager.setVolumeMusic(music_volume / 100);
   SoundManager.setVolume(SE_volume / 100);
 }
+// progress_storage.js読込前の互換用。通常起動では同ファイルによって上書きされる。
 function get_cookies() {
   get_settings_cookies();
   const saved_story = read_cookie("storydata");
