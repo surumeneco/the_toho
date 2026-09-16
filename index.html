@@ -67,6 +67,7 @@
         'programs/achievement_definitions.js',
         'programs/achievements.js',
         'programs/catalog_achievements.js',
+        'programs/archive_state_refresh.js',
         'programs/achievement_ui_integration.js',
         'programs/story_definitions.js',
         'programs/story_system.js',
@@ -123,7 +124,7 @@
       // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-progress-storage-1');
+        url.searchParams.set('v', currentVersion + '-catalog-refresh-1');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
