@@ -65,6 +65,7 @@
         'programs/archive_controls.js',
         'programs/achievement_definitions.js',
         'programs/achievements.js',
+        'programs/achievement_ui_integration.js',
         'programs/main.js'
       ];
 
@@ -110,10 +111,10 @@
       document.cookie = 'version=' + encodeURIComponent(currentVersion)
         + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
 
-      // Script revision is independent of game version, to avoid serving stale JS during 1.4.0 development.
+      // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-achievements-1');
+        url.searchParams.set('v', currentVersion + '-achievements-2');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
