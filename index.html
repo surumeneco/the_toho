@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="the-toho-version" content="1.3.3" />
+  <meta name="the-toho-version" content="1.4.0" />
   <title>THE 徒歩</title>
   <style>
     html, body {
@@ -58,7 +58,23 @@
         'programs/scenes/gameover_scene.js',
         'programs/scenes/story_scene.js',
         'programs/scenes/refresh_scene.js',
-        'programs/main.js'
+        'programs/meta_progress.js',
+        'programs/records_v2.js',
+        'programs/save_safety.js',
+        'programs/scenes/archive_scene.js',
+        'programs/archive_controls.js',
+        'programs/achievement_definitions.js',
+        'programs/achievements.js',
+        'programs/catalog_achievements.js',
+        'programs/achievement_ui_integration.js',
+        'programs/story_definitions.js',
+        'programs/story_system.js',
+        'programs/story_resume_guard.js',
+        'programs/story_trigger_engine.js',
+        'programs/story_ui_extensions.js',
+        'programs/confirmation_and_notice.js',
+        'programs/main.js',
+        'programs/story_background_override.js'
       ];
 
       // HTML自体が古いキャッシュから提供された場合も、最新のバージョンを確認する。
@@ -103,10 +119,10 @@
       document.cookie = 'version=' + encodeURIComponent(currentVersion)
         + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
 
-      // 全JSをバージョン別URLで取得。順番を保ってクラス定義後にゲームを起動する。
+      // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion);
+        url.searchParams.set('v', currentVersion + '-confirm-notice-1');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;

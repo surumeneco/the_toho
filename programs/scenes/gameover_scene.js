@@ -1,148 +1,70 @@
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-    ゲームオーバーシーン
+    ゲームオーバー：履歴を確定してからプレイCookieだけを削除する。
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-phina.define("Gameover_scene",
-  {
-    /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
-      コンストラクタ
-    ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
-    superClass: "DisplayScene",
-    init: function (option)
-    {
-      this.superInit(option);
-      this.width = SCREEN_W;
-      this.height = SCREEN_H;
+phina.define('Gameover_scene', {
+  superClass: 'DisplayScene',
+  init: function (option) {
+    this.superInit(option);
+    this.width = SCREEN_W;
+    this.height = SCREEN_H;
+    this.backgroundColor = Black;
+    const self = this;
 
-      //thisが別のものを指す時に使えるように
-      var self = this;
+    // 再描画・再入場してもrunId単位で重複登録しない。
+    this.saveReady = toho_finish_run();
+    if (this.saveReady) delete_cookies();
 
-      //背景色
-      this.backgroundColor = Black;
+    const versionLabel = Label({ text: 'バージョン：' + version, fill: White }).addChildTo(this);
+    versionLabel.align = 'left';
+    versionLabel.baseline = 'bottom';
+    versionLabel.setPosition(25, SCREEN_H - 25);
 
-      delete_cookies();
+    Label({ text: '力尽きてしまった...', fontSize: 64, fill: White })
+      .addChildTo(this).setPosition(CENTER_W, 200);
+    Label({ text: '過ごした日数：' + player.日数 + '日', fontSize: 64, fill: White })
+      .addChildTo(this).setPosition(CENTER_W, 500);
+    Label({ text: '探索した距離：' + (player.移動距離 / 1000) + 'km', fontSize: 64, fill: White })
+      .addChildTo(this).setPosition(CENTER_W, 600);
+    Label({ text: '多かった食料：' + player.most_eat()[0], fontSize: 64, fill: White })
+      .addChildTo(this).setPosition(CENTER_W, 700);
 
-      /*-----=-----=-----=-----=-----=-----
-          バージョン表示
-        -----=-----=-----=-----=-----=-----*/
-      var version_data = Label({ text: "バージョン：" + version }).addChildTo(this);
-      version_data.fill = White;
-      version_data.align = "left";
-      version_data.baseline = "bottom";
-      version_data.setPosition(25, SCREEN_H - 25);
-      /*-----=-----=-----=-----=-----=-----*/
+    const makeButton = function (text, y, callback) {
+      const button = Button({ text: text, fontSize: 64, width: 300, height: 150,
+        cornerRadius: 0, fill: darkGray, stroke: lightGray, strokeWidth: 15 });
+      button.addChildTo(self).setPosition(SCREEN_W - 200, y);
+      button.onpointend = callback;
+      return button;
+    };
+    makeButton('再挑戦', SCREEN_H - 545, function () {
+      if (!self.saveReady) return;
+      player = new Player();
+      set_cookies();
+      SoundManager.play('newgame');
+      self.exit('ホーム');
+    });
+    makeButton('やめる', SCREEN_H - 250, function () {
+      if (!self.saveReady) return;
+      SoundManager.play('start');
+      self.exit('タイトル');
+    });
 
-
-
-      /*-----=-----=-----=-----=-----=-----
-          テキスト位置設定
-        -----=-----=-----=-----=-----=-----*/
-      var font_size = 64;
-      var text_y = 200;
-      var text_interval = 100;
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          通知表示
-        -----=-----=-----=-----=-----=-----*/
-      var notice = Label("力尽きてしまった...").addChildTo(this);
-      notice.fill = White;
-      notice.fontSize = font_size;
-      notice.setPosition(CENTER_W, text_y);
-      text_y += text_interval * 3;
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          日数表示
-        -----=-----=-----=-----=-----=-----*/
-      var date = Label({ text: "過ごした日数：" + player.日数 + "日" }).addChildTo(this);
-      date.fill = White;
-      date.fontSize = font_size;
-      date.setPosition(CENTER_W, text_y);
-      text_y += text_interval;
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          移動距離表示
-        -----=-----=-----=-----=-----=-----*/
-      var moves = Label({ text: "探索した距離：" + (player.移動距離 / 1000) + "km" }).addChildTo(this);
-      moves.fill = White;
-      moves.fontSize = font_size;
-      moves.setPosition(CENTER_W, text_y);
-      text_y += text_interval;
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          最も食べた食料表示
-        -----=-----=-----=-----=-----=-----*/
-      let most_eat_data = player.most_eat();
-      var moves = Label({ text: "多かった食料：" + most_eat_data[0] }).addChildTo(this);
-      moves.fill = White;
-      moves.fontSize = font_size;
-      moves.setPosition(CENTER_W, text_y);
-      text_y += text_interval;
-      /*-----=-----=-----=-----=-----=-----*/
-
-
-
-      /*-----=-----=-----=-----=-----=-----
-          ボタン設定
-        -----=-----=-----=-----=-----=-----*/
-      var font_size = 64;
-      var button_w = 300;
-      var button_h = 150;
-      var buttons_x = SCREEN_W - button_w / 2 - 50;
-      var buttons_y = SCREEN_H - button_h - 100;
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          リスタートボタン
-        -----=-----=-----=-----=-----=-----*/
-      Button({
-        text: "再挑戦",
-        fontSize: font_size,
-        width: button_w, height: button_h, cornerRadius: 0,
-        fill: darkGray,
-        stroke: lightGray, strokeWidth: 15,
-      }).addChildTo(this)
-        .setPosition(buttons_x, buttons_y - button_h * 1.3)
-        .onpointend = function ()
-        {
-          player = new Player();
-          set_cookies();
-          SoundManager.play("newgame");
-          self.exit("ホーム");
-        };
-      /*-----=-----=-----=-----=-----=-----*/
-
-      /*-----=-----=-----=-----=-----=-----
-          タイトルに戻るボタン
-        -----=-----=-----=-----=-----=-----*/
-      Button({
-        text: "やめる",
-        fontSize: font_size,
-        width: button_w, height: button_h, cornerRadius: 0,
-        fill: darkGray,
-        stroke: lightGray, strokeWidth: 15,
-      }).addChildTo(this)
-        .setPosition(buttons_x, buttons_y)
-        .onpointend = function ()
-        {
-          SoundManager.play("start");
-          self.exit("タイトル");
-        };
-      /*-----=-----=-----=-----=-----=-----*/
-    },
-    /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
-
-    /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---
-      アップデート
-    ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
-    update: function (app)
-    {
-      bgm_check(app);
+    // localStorageの容量超過・アクセス拒否時は消去や再挑戦を許可しない。
+    if (!this.saveReady) {
+      this.saveError = Label({
+        text: '記録を保存できませんでした。\nデータを保護するため終了操作を停止しています。',
+        fontSize: 42, fill: Red,
+      }).addChildTo(this).setPosition(CENTER_W, 955);
+      const retry = makeButton('保存を再試行', 1180, function () {
+        SoundManager.play('select');
+        if (!toho_finish_run()) return;
+        self.saveReady = true;
+        delete_cookies();
+        self.saveError.remove();
+        retry.remove();
+      });
+      retry.width = 500;
+      retry.setPosition(CENTER_W, 1180);
     }
-    /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
-  }
-);
-/*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-
+  },
+  update: function (app) { bgm_check(app); },
+});

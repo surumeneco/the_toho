@@ -30,7 +30,6 @@ phina.define("Home_scene",
       /*-----=-----=-----=-----=-----=-----*/
 
 
-
       /*-----=-----=-----=-----=-----=-----
           テキスト位置設定
         -----=-----=-----=-----=-----=-----*/
@@ -184,11 +183,75 @@ phina.define("Home_scene",
         .setPosition(SCREEN_W - buttons_x, buttons_y)
         .onpointend = function ()
         {
-          delete_cookies();
-          SoundManager.play("start");
-          self.exit("タイトル");
+          self.showAbandonDialog();
         };
       /*-----=-----=-----=-----=-----=-----*/
+    },
+    /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
+
+    // ホームを離れずに確認する。背後のボタンは確認中操作不可にする。
+    showAbandonDialog: function ()
+    {
+      if (this._abandonDialog) return;
+      SoundManager.play("select");
+      var scene = this;
+      var controls = this.children.filter(function (child) { return child.interactive; });
+      controls.forEach(function (control) { control.interactive = false; });
+
+      var elements = [];
+      function add(element, x, y)
+      {
+        element.addChildTo(scene).setPosition(x, y);
+        elements.push(element);
+        return element;
+      }
+
+      // 既存画面・背景画像を暗くして、その上にゲーム内の確認UIを表示する。
+      add(RectangleShape({
+        width: SCREEN_W, height: SCREEN_H,
+        fill: "rgba(0, 0, 0, 0.75)", strokeWidth: 0,
+      }), CENTER_W, CENTER_H);
+      add(RectangleShape({
+        width: 940, height: 620, cornerRadius: 20,
+        fill: darkGray, stroke: lightGray, strokeWidth: 12,
+      }), CENTER_W, CENTER_H);
+      add(Label({
+        text: "本当に諦めますか？", fill: White, fontSize: 66,
+      }), CENTER_W, CENTER_H - 150);
+      add(Label({
+        text: "現在のプレイデータは削除されます。", fill: White, fontSize: 40,
+      }), CENTER_W, CENTER_H - 40);
+
+      var yes = add(Button({
+        text: "はい", fontSize: 60,
+        width: 320, height: 140, cornerRadius: 0,
+        fill: "#823636", stroke: lightGray, strokeWidth: 12,
+      }), CENTER_W - 205, CENTER_H + 175);
+      var no = add(Button({
+        text: "いいえ", fontSize: 60,
+        width: 320, height: 140, cornerRadius: 0,
+        fill: darkGray, stroke: lightGray, strokeWidth: 12,
+      }), CENTER_W + 205, CENTER_H + 175);
+
+      this._abandonDialog = { elements: elements, controls: controls };
+      yes.onpointend = function ()
+      {
+        if (!scene._abandonDialog) return;
+        scene._abandonDialog = null;
+        delete_cookies();
+        SoundManager.play("start");
+        scene.exit("タイトル");
+      };
+      no.onpointend = function ()
+      {
+        if (!scene._abandonDialog) return;
+        var dialog = scene._abandonDialog;
+        scene._abandonDialog = null;
+        dialog.elements.forEach(function (element) { element.remove(); });
+        // 同じタップが背後のボタンへ伝播しないよう、次フレームで復帰する。
+        scene._abandonRestoreControls = dialog.controls;
+        SoundManager.play("select");
+      };
     },
     /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
 
@@ -197,10 +260,14 @@ phina.define("Home_scene",
     ---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
     update: function (app)
     {
+      if (this._abandonRestoreControls)
+      {
+        this._abandonRestoreControls.forEach(function (control) { control.interactive = true; });
+        this._abandonRestoreControls = null;
+      }
       bgm_check(app);
     }
     /*---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---*/
   }
 );
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-
