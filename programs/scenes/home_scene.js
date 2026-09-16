@@ -30,7 +30,6 @@ phina.define("Home_scene",
       /*-----=-----=-----=-----=-----=-----*/
 
 
-
       /*-----=-----=-----=-----=-----=-----
           テキスト位置設定
         -----=-----=-----=-----=-----=-----*/
@@ -184,6 +183,9 @@ phina.define("Home_scene",
         .setPosition(SCREEN_W - buttons_x, buttons_y)
         .onpointend = function ()
         {
+          // キャンセル・ダイアログを閉じた場合はプレイデータを一切変更しない。
+          if (!window.confirm("本当に諦めますか？\n現在のプレイデータは削除されます。")) return;
+
           delete_cookies();
           SoundManager.play("start");
           self.exit("タイトル");
@@ -203,4 +205,3 @@ phina.define("Home_scene",
   }
 );
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-
