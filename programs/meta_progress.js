@@ -1,4 +1,4 @@
-/* v1.4.0: 永続記録。既存のプレイCookieとは別に保存し、過去のデータを消さない。 */
+/* v1.4.x: 最高記録・図鑑・実績・ストーリー・履歴などの永続記録をlocalStorageで管理する。 */
 const TOHO_META_KEY = 'the_toho:meta:v1';
 const TOHO_RUN_KEY = 'the_toho:run:v1';
 const TOHO_SETTINGS_KEY = 'the_toho:settings:v1';
@@ -47,7 +47,7 @@ function toho_load_meta() {
   if (!Array.isArray(value.encyclopedia.itemIds)) value.encyclopedia.itemIds = [];
   if (!Array.isArray(value.encyclopedia.enemyIds)) value.encyclopedia.enemyIds = [];
   if (!Array.isArray(value.history)) value.history = [];
-  return value; // 未実装の実績・ストーリー用フィールドや将来の拡張を保持する。
+  return value;
 }
 const toho_meta = toho_load_meta();
 let toho_meta_dirty = false;
@@ -159,7 +159,7 @@ function toho_note_encounter(enemy) {
 }
 function toho_checkpoint() {
   toho_track_player();
-  toho_scan_inventory(); // 旧Cookieに残っていた所持品も発見済みとして移行。
+  toho_scan_inventory();
   const distance = Number(player.移動距離);
   const days = Number(player.日数);
   if (Number.isFinite(distance) && distance > toho_meta.records.bestDistanceMeters) {
@@ -223,7 +223,7 @@ function toho_finish_run() {
     toho_meta.history = toho_meta.history.slice(0, 10);
     toho_meta_dirty = true;
   }
-  return toho_save_meta(); // 保存が失敗した場合、ゲームオーバー画面側でCookieを消さない。
+  return toho_save_meta();
 }
 function toho_discovery_rates() {
   const items = toho_item_catalog();
@@ -237,10 +237,6 @@ function toho_discovery_rates() {
     grandTotal: items.length + enemies.length };
 }
 
-// v1.3.3の設定CookieからlocalStorageに移行し、進行Cookieとは別に維持する。
-const toho_original_set_settings = set_settings_cookies;
-const toho_original_get_settings = get_settings_cookies;
-const toho_settings = toho_read_json(TOHO_SETTINGS_KEY);
 function toho_apply_settings(settings) {
   if (!settings || typeof settings !== 'object') return false;
   const bgm = Number(settings.bgmVolume);
@@ -255,40 +251,47 @@ function toho_apply_settings(settings) {
   return true;
 }
 get_settings_cookies = function () {
-  if (!toho_apply_settings(toho_read_json(TOHO_SETTINGS_KEY))) {
-    toho_original_get_settings();
-    toho_write_json(TOHO_SETTINGS_KEY, {
-      bgmVolume: music_volume, seVolume: SE_volume, assetVersion: version,
-    });
-  }
-};
-set_settings_cookies = function () {
-  if (!toho_write_json(TOHO_SETTINGS_KEY, {
-    bgmVolume: music_volume, seVolume: SE_volume, assetVersion: version,
-  })) toho_original_set_settings(); // 保存領域が使えない場合は旧Cookieへ退避。
-  write_cookie('version', version);
+  if (toho_apply_settings(toho_read_json(TOHO_SETTINGS_KEY))) return true;
   saved_music_volume = music_volume;
   saved_SE_volume = SE_volume;
+  SoundManager.setVolumeMusic(music_volume / 100);
+  SoundManager.setVolume(SE_volume / 100);
+  return toho_write_json(TOHO_SETTINGS_KEY, {
+    bgmVolume: music_volume, seVolume: SE_volume, assetVersion: version,
+  });
+};
+set_settings_cookies = function () {
+  const saved = toho_write_json(TOHO_SETTINGS_KEY, {
+    bgmVolume: music_volume, seVolume: SE_volume, assetVersion: version,
+  });
+  if (saved) {
+    saved_music_volume = music_volume;
+    saved_SE_volume = SE_volume;
+  }
+  return saved;
 };
 get_settings_cookies();
 
-// v1.3.3の呼出し口を保ったまま、毎回メタ記録だけ追加更新する。
+// 呼出し名は旧来のままだが、保存実体はすべてlocalStorage。
 const toho_original_set_cookies = set_cookies;
 set_cookies = function () {
   toho_track_player();
-  toho_original_set_cookies();
-  toho_checkpoint();
+  const saved = toho_original_set_cookies();
+  const metaSaved = toho_checkpoint();
+  return saved !== false && metaSaved;
 };
 const toho_original_get_cookies = get_cookies;
 get_cookies = function () {
-  toho_original_get_cookies();
+  const restored = toho_original_get_cookies();
   toho_track_player();
-  toho_checkpoint();
+  if (restored) toho_checkpoint();
+  return restored;
 };
 const toho_original_delete_cookies = delete_cookies;
 delete_cookies = function () {
-  toho_original_delete_cookies(); // プレイ用Cookieだけを削除する。
+  const deleted = toho_original_delete_cookies();
+  if (deleted === false) return false;
   toho_run = null;
-  toho_save_run();
+  return toho_save_run();
 };
 toho_track_player();
