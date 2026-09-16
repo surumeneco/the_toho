@@ -83,6 +83,12 @@ const TOHO_ACHIEVEMENT_DEFINITIONS = `
 081|何者？|女の子……？を倒す|kill|enemy:girl-stage-1|1|s
 082|何者？？|女の子……？を倒す|kill|enemy:girl-stage-2|1|s
 083|何者？？？|女の子……？を倒す|kill|enemy:girl-stage-3|1|s
+084|食いしん坊|食料図鑑を全て解放する|catalog|food|1|
+085|武器マイスター|武器図鑑を全て解放する|catalog|weapon|1|
+086|万能|道具図鑑を全て解放する|catalog|tool|1|
+087|博物学者|素材図鑑を全て解放する|catalog|material|1|
+088|生物学者|敵図鑑を全て解放する|catalog|enemy|1|
+089|コレクター|全図鑑を全て解放する|catalog|all|1|
 `.trim().split('\n').map(function (line) {
   const parts = line.split('|');
   return Object.freeze({ id: 'ACH-' + parts[0], name: parts[1], condition: parts[2],
