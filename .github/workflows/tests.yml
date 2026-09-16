@@ -22,3 +22,5 @@ jobs:
         run: node tests/catalog_achievements.test.js
       - name: Story and history regressions
         run: node tests/stories.test.js
+      - name: Confirmation and notice sound regressions
+        run: node tests/confirmation_and_notice.test.js
