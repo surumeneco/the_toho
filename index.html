@@ -68,6 +68,7 @@
         'programs/achievement_ui_integration.js',
         'programs/story_definitions.js',
         'programs/story_system.js',
+        'programs/story_resume_guard.js',
         'programs/main.js'
       ];
 
@@ -116,7 +117,7 @@
       // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-stories-2');
+        url.searchParams.set('v', currentVersion + '-stories-3');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
