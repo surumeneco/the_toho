@@ -146,6 +146,7 @@ phina.main(function () {
     ],
   });
   install_scene_backgrounds(app);
+  install_achievement_notifications(app);
   app.run();
 });
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
