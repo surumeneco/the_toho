@@ -18,5 +18,7 @@ jobs:
           node-version: '22'
       - name: Achievement regressions
         run: node tests/achievements.test.js
+      - name: Encyclopedia completion achievements
+        run: node tests/catalog_achievements.test.js
       - name: Story and history regressions
         run: node tests/stories.test.js
