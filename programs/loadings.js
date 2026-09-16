@@ -1,10 +1,35 @@
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     データ読み込み関数
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-function loading(path, file_loading, data_converting)
+function loading(url, file_loading, data_converting)
 {
-  file_loading(path, data_converting);
-  return true;
+  // 従来はリクエスト開始直後に true を返していたため、完了状態を判定できなかった。
+  // status / promise を持つ状態オブジェクトとして管理し、変換完了まで loaded にしない。
+  const state = {
+    url: url,
+    status: "loading",
+    loaded: false,
+    error: null,
+    promise: null,
+  };
+
+  state.promise = file_loading(url)
+    .then(function (data)
+    {
+      data_converting(data);
+      state.status = "loaded";
+      state.loaded = true;
+      return state;
+    })
+    .catch(function (error)
+    {
+      state.status = "failed";
+      state.error = error;
+      console.error("ゲームデータの読み込みに失敗しました:", url, error);
+      throw error;
+    });
+
+  return state;
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -15,11 +40,13 @@ function loading(path, file_loading, data_converting)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_foods(data)
 {
+  if (!Array.isArray(data)) throw new Error("foods.json の形式が不正です");
+  foods_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     foods_data.push(new Food(data[i].名前, data[i].探索入手, data[i].最大入手数, data[i].回復量));
   }
-  console.log("data was converted successfully");
+  console.log("foods data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -30,12 +57,14 @@ function load_foods(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_weapons(data)
 {
+  if (!Array.isArray(data)) throw new Error("weapons.json の形式が不正です");
+  weapons_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     let dice = Dices(data[i].攻撃力.ダイス, data[i].攻撃力.固定値);
     weapons_data.push(new Weapon(data[i].名前, dice));
   }
-  console.log("data was converted successfully");
+  console.log("weapons data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -46,11 +75,13 @@ function load_weapons(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_tools(data)
 {
+  if (!Array.isArray(data)) throw new Error("tools.json の形式が不正です");
+  tools_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     tools_data.push(new Tool(data[i].名前));
   }
-  console.log("data was converted successfully");
+  console.log("tools data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -61,11 +92,13 @@ function load_tools(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_materials(data)
 {
+  if (!Array.isArray(data)) throw new Error("materials.json の形式が不正です");
+  materials_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     materials_data.push(new Material(data[i].名前, data[i].必要道具, data[i].最大入手数));
   }
-  console.log("data was converted successfully");
+  console.log("materials data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -76,6 +109,8 @@ function load_materials(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_recipes(data)
 {
+  if (!Array.isArray(data)) throw new Error("recipes.json の形式が不正です");
+  recipes_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     let recipes = new Array();
@@ -88,9 +123,9 @@ function load_recipes(data)
         data[i].必要道具,
         recipes
       ]
-    )
+    );
   }
-  console.log("data was converted successfully");
+  console.log("recipes data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -101,12 +136,14 @@ function load_recipes(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_enemies(data)
 {
+  if (!Array.isArray(data)) throw new Error("enemies.json の形式が不正です");
+  enemies_data.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     let dice = Dices(data[i].攻撃力.ダイス, data[i].攻撃力.固定値);
     enemies_data.push(new Enemy(data[i].名前, data[i].体力, dice, data[i].ドロップ, data[i].出現距離));
   }
-  console.log("data was converted successfully");
+  console.log("enemies data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -117,6 +154,8 @@ function load_enemies(data)
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 function load_stories(data)
 {
+  if (!Array.isArray(data)) throw new Error("story.json の形式が不正です");
+  story_texts.length = 0;
   for (let i = 0; i < data.length; i++)
   {
     let text = "";
@@ -126,7 +165,7 @@ function load_stories(data)
     }
     story_texts.push(text);
   }
-  console.log("data was converted successfully");
+  console.log("story data was converted successfully");
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
@@ -137,30 +176,18 @@ function load_stories(data)
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     JSONファイル読み込み関数
   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-function load_JSON(path, callback)
+function load_JSON(url)
 {
-  let requestURL = path;
-  let request = new XMLHttpRequest();
-
-  request.onreadystatechange = function ()
-  {
-    if (request.readyState == 4 && request.status == 200)
+  // responseType=json の XMLHttpRequest に任せず、HTTP失敗とJSON解析失敗を
+  // Promise の reject として呼び出し元へ伝える。
+  return fetch(url, { cache: "no-store" })
+    .then(function (response)
     {
-      console.log("json file was loaded successfully");
-    }
-  };
-
-  request.open('GET', requestURL);
-  request.responseType = 'json';
-  request.send();
-
-  request.onload = function ()
-  {
-    let data = request.response;
-    data = JSON.parse(JSON.stringify(data));
-    console.log("end loading json file");
-    callback(data);
-  }
+      if (!response.ok)
+      {
+        throw new Error("HTTP " + response.status + " " + response.statusText);
+      }
+      return response.json();
+    });
 }
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
-
