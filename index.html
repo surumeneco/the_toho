@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="the-toho-version" content="1.4.1" />
+  <meta name="the-toho-version" content="1.4.2" />
   <title>THE 徒歩</title>
   <style>
     html, body {
@@ -121,10 +121,9 @@
       document.cookie = 'version=' + encodeURIComponent(currentVersion)
         + '; Max-Age=2592000; Path=' + cookiePath + '; SameSite=Lax';
 
-      // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-catalog-refresh-1');
+        url.searchParams.set('v', currentVersion);
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
