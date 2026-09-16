@@ -65,11 +65,15 @@
         'programs/archive_controls.js',
         'programs/achievement_definitions.js',
         'programs/achievements.js',
+        'programs/catalog_achievements.js',
         'programs/achievement_ui_integration.js',
         'programs/story_definitions.js',
         'programs/story_system.js',
         'programs/story_resume_guard.js',
-        'programs/main.js'
+        'programs/story_trigger_engine.js',
+        'programs/story_ui_extensions.js',
+        'programs/main.js',
+        'programs/story_background_override.js'
       ];
 
       // HTML自体が古いキャッシュから提供された場合も、最新のバージョンを確認する。
@@ -117,7 +121,7 @@
       // Script revision is independent of game version, to avoid stale JS during development.
       for (const file of scriptFiles) {
         const url = new URL(file, base);
-        url.searchParams.set('v', currentVersion + '-stories-3');
+        url.searchParams.set('v', currentVersion + '-stories-4');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
