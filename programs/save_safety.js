@@ -1,12 +1,28 @@
 /* v1.4.0: 旧Cookie互換のセーブを補強する安全ガード。 */
-const toho_base_reload_check = reload_check;
+let toho_resume_checked = false;
 reload_check = function () {
-  // セーブがない状態でタイトルや図鑑をリロードしても新規プレイを開始しない。
-  if (load_type == 1 && read_cookie('playingdata') === null) {
+  // 初回のページ遷移でも既存セーブを復元。タイトル再訪時には二重復元しない。
+  if (toho_resume_checked) return false;
+  toho_resume_checked = true;
+  const saved = read_cookie('playingdata');
+  if (!saved) { load_type = -1; return false; }
+  try {
+    const data = JSON.parse(saved);
+    if (!data || typeof data !== 'object' || !Number.isFinite(Number(data.日数)) ||
+      !Number.isFinite(Number(data.移動距離)) || !Array.isArray(data.食料) ||
+      !Array.isArray(data.武器) || !Array.isArray(data.道具) || !Array.isArray(data.素材)) {
+      console.warn('復元できないプレイCookieです。削除せずタイトルに留まります。');
+      load_type = -1;
+      return false;
+    }
+  } catch (error) {
+    console.warn('プレイCookieの解析に失敗しました。削除せずタイトルに留まります。', error);
     load_type = -1;
     return false;
   }
-  return toho_base_reload_check();
+  get_cookies();
+  load_type = -1;
+  return true;
 };
 
 // 同じプレイヤーで結果シーンが再生成されても、新しい周回IDを作って記録し直さない。
