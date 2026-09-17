@@ -82,17 +82,21 @@ toho_save_meta = function () {
     toho_meta_dirty = true;
   }
 
-  let encyclopediaSaved = true;
-  if (!toho_storage_is_blocked(TOHO_ENCYCLOPEDIA_KEY)) {
-    encyclopediaSaved = toho_write_json(
-      TOHO_ENCYCLOPEDIA_KEY,
-      toho_encyclopedia_record(target)
-    );
-    if (encyclopediaSaved) toho_committed_encyclopedia = toho_encyclopedia_snapshot(target);
-  }
-
+  // 共通metaを先に確定する。ここで失敗した場合は専用キーを先行更新しない。
   const metaSaved = toho_base_save_meta_for_encyclopedia();
-  return metaSaved && encyclopediaSaved;
+  if (!metaSaved) return false;
+
+  // 専用キーが壊れて保護状態の場合は共通metaを正本として継続する。
+  if (toho_storage_is_blocked(TOHO_ENCYCLOPEDIA_KEY)) return true;
+
+  const encyclopediaSaved = toho_write_json(
+    TOHO_ENCYCLOPEDIA_KEY,
+    toho_encyclopedia_record(target)
+  );
+  if (encyclopediaSaved) {
+    toho_committed_encyclopedia = toho_encyclopedia_snapshot(target);
+  }
+  return encyclopediaSaved;
 };
 
 function toho_replace_encyclopedia_ids(itemIds, enemyIds) {
