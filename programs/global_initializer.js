@@ -33,7 +33,8 @@ let path = new URL("../", document.currentScript.src).href;
 // const version = "1.4.0"; // 2026/09/17 05:37 (JST・リリース更新作業日時)
 // const version = "1.4.1"; // 2026/09/17 (JST)
 // const version = "1.4.2"; // 2026/09/17 (JST)
-const version = "1.4.3"; // 2026/09/17 (JST)
+// const version = "1.4.3"; // 2026/09/17 (JST)
+const version = "1.4.4"; // 2026/09/17 (JST)
 
 const SCREEN_W = 1080;
 const SCREEN_H = 1920;
@@ -173,7 +174,7 @@ function bgm_check(app) {
 }
 
 // v1.4.xではCookie互換を行わない。以下は既存シーンの呼出し名だけを維持する初期実装で、
-// progress_storage.js / localstorage_only.js によりlocalStorage実装へ置き換えられる。
+// progress_storage.js / meta_progress.js によりlocalStorage実装へ置き換えられる。
 function set_settings_cookies() {
   saved_music_volume = music_volume;
   saved_SE_volume = SE_volume;
