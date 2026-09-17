@@ -84,4 +84,24 @@ discoveredNames.add('毛皮');
 scene.render();
 assert.equal(scene.scrollRows[1].node.text, '・毛皮　最大1');
 
-console.log('PASS: archive scene refreshes unlocks and masks undiscovered enemy drops');
+// 実行時に保存キーと表示が食い違った場合、画面を開く際に再照合する。
+let syncCalls = 0;
+let diagnosis = '';
+env.window = { location: { search: '?debug=storage' } };
+env.CENTER_W = 540;
+env.Red = 'red';
+env.toho_reconcile_encyclopedia_storage = function () {
+  syncCalls++;
+  return { recovered: true, saved: true, error: null };
+};
+env.toho_encyclopedia_storage_diagnostic = function () {
+  return { memory: '2/1', meta: '2/1', dedicated: '2/1', blocked: false, error: null };
+};
+scene.label = function (text) { diagnosis = text; return { fill: null }; };
+scene.view = 'index';
+scene.render();
+assert.equal(syncCalls, 1, 'archive opening must reconcile saved unlocks');
+assert(diagnosis.includes('保存データから復元'));
+assert(diagnosis.includes('画面:2/1 共通:2/1 専用:2/1'));
+
+console.log('PASS: archive scene refreshes unlocks, reconciles storage and masks undiscovered enemy drops');
