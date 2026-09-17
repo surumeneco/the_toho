@@ -33,6 +33,10 @@
       const base = new URL('./', window.location.href);
       const gamePath = base.pathname;
       const assetVersionKey = 'the_toho:asset-version';
+      // phina.js 0.2.3 replaces Array.from with an old polyfill that returns [] for
+      // iterable objects such as Set/Map because it checks .length before Symbol.iterator.
+      // Preserve the browser-native implementation and restore it immediately after phina loads.
+      const nativeArrayFrom = Array.from;
       const scriptFiles = [
         'frameworks/colors_HEX.js',
         'frameworks/colors_String.js',
@@ -137,7 +141,10 @@
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = url.href;
-          script.onload = resolve;
+          script.onload = function () {
+            if (file === 'frameworks/phina.js' && nativeArrayFrom) Array.from = nativeArrayFrom;
+            resolve();
+          };
           script.onerror = () => reject(new Error('スクリプトを読み込めません: ' + file));
           document.head.appendChild(script);
         });
