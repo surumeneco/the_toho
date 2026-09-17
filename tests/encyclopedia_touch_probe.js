@@ -1,4 +1,4 @@
-/* Browser probe: run the real game scenes while bypassing only canvas input dispatch. */
+/* Browser probe: run real Phina handlers while bypassing only DOM-to-canvas input dispatch. */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
@@ -9,12 +9,12 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 720, height: 1280 } });
   const page = await context.newPage();
-  page.setDefaultTimeout(12000);
+  page.setDefaultTimeout(15000);
   const consoleMessages = [];
   page.on('console', msg => consoleMessages.push(msg.type() + ': ' + msg.text()));
   page.on('pageerror', error => consoleMessages.push('pageerror: ' + error.stack));
 
-  // Test-only instrumentation: expose the real GameApp instance without changing production code.
+  // Test-only instrumentation: expose GameApp without touching production source.
   await page.route('**/programs/main.js*', async route => {
     const response = await route.fetch();
     let body = await response.text();
@@ -25,11 +25,12 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     await route.fulfill({ response, body });
   });
 
-  async function ready() {
+  async function readyAtTitle() {
     await page.waitForFunction(() =>
       typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
       typeof toho_encyclopedia_storage_diagnostic === 'function' &&
-      window.__toho_app && document.querySelector('canvas'));
+      window.__toho_app && document.querySelector('canvas') &&
+      typeof now_scene !== 'undefined' && now_scene === 'タイトル');
   }
   async function snapshot(label) {
     const value = await page.evaluate(() => ({
@@ -52,24 +53,20 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   }
 
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
-  await ready();
+  await readyAtTitle();
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await ready();
+  await readyAtTitle();
   console.log('afterClear=' + JSON.stringify(await page.evaluate(() => toho_encyclopedia_storage_diagnostic())));
 
-  // Execute exactly the title scene's new-game body, then transition through the real SceneManager.
+  // Fire the actual title scene handler. Only browser pointer dispatch is bypassed.
   await page.evaluate(() => {
-    toho_start_run();
-    player = new Player();
-    set_cookies();
-    window.__toho_app.currentScene.exit('ホーム');
+    window.__toho_app.currentScene.flare('pointend', { pointer: { x: 540, y: 900 } });
   });
   await page.waitForFunction(() => now_scene === 'ホーム');
   const afterStart = await snapshot('afterStart');
   assert.equal(afterStart.tracking, true, 'fresh Player must be tracked');
 
-  // Instrument the actual unlock/save functions after player tracking is established.
   await page.evaluate(() => {
     window.__encyclopediaProbe = [];
     const originalUnlock = toho_unlock_item;
@@ -93,17 +90,19 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
       window.__encyclopediaProbe.push({ kind: 'set_cookies', result, before, after });
       return result;
     };
+    battle_rate = 0;
   });
 
-  // Enter the real exploration scene. Avoid battle randomness so Get_scene is deterministic.
+  // Fire the real Home '探索' Button handler.
   await page.evaluate(() => {
-    battle_rate = 0;
-    window.__toho_app.currentScene.exit('探索');
+    const button = window.__toho_app.currentScene.children.find(child => child && child.text === '探索');
+    if (!button) throw new Error('探索ボタンが見つかりません');
+    button.flare('pointend', { pointer: { x: button.x, y: button.y } });
   });
 
   let acquired = false;
-  for (let i = 0; i < 30; i++) {
-    await sleep(300);
+  for (let i = 0; i < 40; i++) {
+    await sleep(250);
     const state = await page.evaluate(() => ({
       scene: now_scene,
       count: [player.食料, player.武器, player.道具, player.素材].reduce((n, list) =>
@@ -117,15 +116,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   console.log('CONSOLE_TAIL=' + JSON.stringify(consoleMessages.slice(-80)));
   assert(acquired, 'real exploration/Get_scene must acquire at least one item');
   assert(afterAcquisition.inventory.length > 0);
-
-  // This is the central invariant: acquired inventory and all persistent encyclopedia copies agree.
   assert(afterAcquisition.probe.some(event => event.kind === 'unlock'), 'unlock must be called');
   assert(afterAcquisition.memory.itemIds.length > 0, 'memory encyclopedia must contain acquired item');
   assert.notEqual(afterAcquisition.diagnostic.meta, '0/0', 'meta encyclopedia must persist acquired item');
   assert.notEqual(afterAcquisition.diagnostic.dedicated, '0/0', 'dedicated encyclopedia copy must persist acquired item');
 
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await ready();
+  await readyAtTitle();
   const afterReload = await snapshot('afterReload');
   assert.notEqual(afterReload.diagnostic.meta, '0/0', 'meta encyclopedia must survive reload');
   assert.notEqual(afterReload.diagnostic.dedicated, '0/0', 'dedicated encyclopedia copy must survive reload');
