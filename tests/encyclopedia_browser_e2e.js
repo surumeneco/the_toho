@@ -7,9 +7,7 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 1080 } });
-  await context.addInitScript(() => {
-    Math.random = () => 0.5;
-  });
+  await context.addInitScript(() => { Math.random = () => 0.5; });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const consoleMessages = [];
@@ -76,7 +74,6 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
     await clickLogical(540, 900);
     await page.waitForFunction(() => localStorage.getItem('the_toho:progress:v1') !== null);
   });
-
   await stage('home-explore-and-acquire', async () => {
     await clickLogical(880, 1085);
     await page.waitForFunction(() => [player.食料, player.武器, player.道具, player.素材]
@@ -115,5 +112,5 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
   await browser.close();
 })().catch(error => {
   console.error(error);
-  process.exitCode = 1;
+  process.exit(1);
 });
