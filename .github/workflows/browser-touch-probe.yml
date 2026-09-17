@@ -1,0 +1,48 @@
+name: Browser encyclopedia touch probe
+
+on:
+  push:
+    branches: ['feature/encyclopedia-persistence-debug']
+  workflow_dispatch:
+
+concurrency:
+  group: browser-encyclopedia-touch-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  touch-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Serve game
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/the_toho_http.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/the_toho_http.log
+          exit 1
+      - name: Touch root-cause probe
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout --signal=TERM --kill-after=10s 150s node tests/encyclopedia_touch_probe.js 2>&1 | tee browser-touch-probe.log
+      - name: Upload probe log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encyclopedia-touch-probe
+          path: browser-touch-probe.log
+          if-no-files-found: warn
