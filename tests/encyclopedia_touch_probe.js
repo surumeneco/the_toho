@@ -26,10 +26,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   });
 
   async function ready() {
-    await page.waitForFunction(() =>
-      typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
-      typeof toho_encyclopedia_storage_diagnostic === 'function' &&
-      window.__toho_app && document.querySelector('canvas'));
+    await page.waitForFunction(() => {
+      const manager = window.__toho_app && window.__toho_app.rootScene;
+      return typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
+        typeof toho_encyclopedia_storage_diagnostic === 'function' &&
+        document.querySelector('canvas') && manager &&
+        typeof manager.getCurrentIndex === 'function' && Array.isArray(manager.scenes);
+    });
   }
   async function sceneLabel() {
     return page.evaluate(() => {
@@ -41,7 +44,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   async function waitScene(label) {
     await page.waitForFunction(expected => {
       const manager = window.__toho_app && window.__toho_app.rootScene;
-      if (!manager) return false;
+      if (!manager || typeof manager.getCurrentIndex !== 'function' || !Array.isArray(manager.scenes)) return false;
       const config = manager.scenes[manager.getCurrentIndex()];
       return config && config.label === expected;
     }, label);
