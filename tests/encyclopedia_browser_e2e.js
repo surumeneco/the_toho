@@ -8,14 +8,33 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 1080 } });
   await context.addInitScript(() => {
-    // Make the first search deterministic: 50 is outside battle_rate(20), and Get_scene stops after one drop.
     Math.random = () => 0.5;
   });
   const page = await context.newPage();
+  page.setDefaultTimeout(10000);
   const consoleMessages = [];
   page.on('console', msg => consoleMessages.push(msg.type() + ': ' + msg.text()));
   page.on('pageerror', error => consoleMessages.push('pageerror: ' + error.stack));
 
+  async function stage(name, action) {
+    console.log('STAGE: ' + name);
+    try { return await action(); }
+    catch (error) {
+      console.log('FAILED_STAGE: ' + name);
+      console.log('CONSOLE_TAIL: ' + JSON.stringify(consoleMessages.slice(-50)));
+      try {
+        console.log('PAGE_STATE: ' + JSON.stringify(await page.evaluate(() => ({
+          href: location.href,
+          canvas: !!document.querySelector('canvas'),
+          dataReady: typeof toho_data_is_ready === 'function' ? toho_data_is_ready() : null,
+          nowScene: typeof now_scene === 'undefined' ? null : now_scene,
+          progress: localStorage.getItem('the_toho:progress:v1'),
+          diagnostic: typeof toho_encyclopedia_storage_diagnostic === 'function' ? toho_encyclopedia_storage_diagnostic() : null,
+        }))));
+      } catch (_) {}
+      throw error;
+    }
+  }
   async function waitReady() {
     await page.waitForFunction(() => typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
       typeof toho_encyclopedia_storage_diagnostic === 'function' && document.querySelector('canvas'));
@@ -23,6 +42,7 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
   async function clickLogical(x, y) {
     const box = await page.locator('canvas').boundingBox();
     assert(box, 'canvas must exist');
+    console.log('CLICK: ' + JSON.stringify({ logical: [x, y], box }));
     await page.mouse.click(box.x + x * box.width / 1080, box.y + y * box.height / 1920);
   }
   async function diagnostic(label) {
@@ -42,20 +62,26 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
     return value;
   }
 
-  await page.goto(URL, { waitUntil: 'networkidle' });
-  await waitReady();
+  await stage('initial-load', async () => {
+    await page.goto(URL, { waitUntil: 'domcontentloaded' });
+    await waitReady();
+  });
   await page.evaluate(() => localStorage.clear());
-  await page.reload({ waitUntil: 'networkidle' });
-  await waitReady();
+  await stage('reload-after-clear', async () => {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitReady();
+  });
 
-  // Title -> new game. The logical point is outside the title's four archive buttons and volume bars.
-  await clickLogical(540, 900);
-  await page.waitForFunction(() => localStorage.getItem('the_toho:progress:v1') !== null);
+  await stage('title-start', async () => {
+    await clickLogical(540, 900);
+    await page.waitForFunction(() => localStorage.getItem('the_toho:progress:v1') !== null);
+  });
 
-  // Home -> Explore. Search_scene resolves immediately and deterministic random sends us to Get_scene.
-  await clickLogical(880, 1085);
-  await page.waitForFunction(() => [player.食料, player.武器, player.道具, player.素材]
-    .some(list => Array.isArray(list) && list.some(pair => pair && pair[1] > 0)));
+  await stage('home-explore-and-acquire', async () => {
+    await clickLogical(880, 1085);
+    await page.waitForFunction(() => [player.食料, player.武器, player.道具, player.素材]
+      .some(list => Array.isArray(list) && list.some(pair => pair && pair[1] > 0)));
+  });
 
   await page.screenshot({ path: 'browser-e2e-after-acquisition.png', fullPage: true });
   const afterAcquisition = await diagnostic('afterAcquisition');
@@ -65,16 +91,19 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
   assert.notEqual(afterAcquisition.storage.meta, '0/0', 'common meta must contain encyclopedia discovery');
   assert.notEqual(afterAcquisition.storage.dedicated, '0/0', 'dedicated encyclopedia copy must contain discovery');
 
-  // Get_scene -> Home -> abandon. This deletes only current progress.
-  await clickLogical(880, 1670);
-  await clickLogical(200, 1670);
-  await clickLogical(335, 1135);
-  await page.waitForFunction(() => localStorage.getItem('the_toho:progress:v1') === null);
+  await stage('abandon', async () => {
+    await clickLogical(880, 1670);
+    await clickLogical(200, 1670);
+    await clickLogical(335, 1135);
+    await page.waitForFunction(() => localStorage.getItem('the_toho:progress:v1') === null);
+  });
   const afterAbandon = await diagnostic('afterAbandon');
   assert(afterAbandon.memory.itemIds.length > 0, 'abandon must not clear encyclopedia memory');
 
-  await page.reload({ waitUntil: 'networkidle' });
-  await waitReady();
+  await stage('reload-after-abandon', async () => {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitReady();
+  });
   await page.screenshot({ path: 'browser-e2e-after-reload.png', fullPage: true });
   const afterReload = await diagnostic('afterReload');
   assert(afterReload.memory.itemIds.length > 0, 'reload must restore encyclopedia memory');
@@ -84,7 +113,7 @@ const URL = 'http://127.0.0.1:4173/?debug=storage';
   console.log('CONSOLE_TAIL: ' + JSON.stringify(consoleMessages.slice(-40)));
   console.log('PASS: browser acquisition -> encyclopedia persistence -> abandon -> reload');
   await browser.close();
-})().catch(async error => {
+})().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });
