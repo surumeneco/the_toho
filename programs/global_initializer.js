@@ -37,7 +37,8 @@ let path = new URL("../", document.currentScript.src).href;
 // const version = "1.4.4"; // 2026/09/17 (JST)
 // const version = "1.4.5"; // 2026/09/17 (JST)
 // const version = "1.4.6"; // 2026/09/17 (JST)
-const version = "1.4.7"; // 2026/09/17 (JST)
+// const version = "1.4.7"; // 2026/09/17 (JST)
+const version = "1.4.8"; // 2026/09/17 (JST)
 
 const SCREEN_W = 1080;
 const SCREEN_H = 1920;
