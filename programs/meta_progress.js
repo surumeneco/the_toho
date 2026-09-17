@@ -2,25 +2,31 @@
 const TOHO_META_KEY = 'the_toho:meta:v1';
 const TOHO_RUN_KEY = 'the_toho:run:v1';
 const TOHO_SETTINGS_KEY = 'the_toho:settings:v1';
-let toho_storage_locked = false;
 
+// 1つの保存領域が壊れていても、無関係な領域まで保存不能にしない。
+// 壊れたキー自身だけは上書きせず、既存データを保護する。
+const toho_storage_blocked_keys = new Set();
+function toho_storage_is_blocked(key) {
+  return toho_storage_blocked_keys.has(key);
+}
 function toho_read_json(key) {
   try {
     const raw = window.localStorage.getItem(key);
-    return raw === null ? null : JSON.parse(raw);
+    if (raw === null) return null;
+    return JSON.parse(raw);
   } catch (error) {
-    console.error('保存データを読み取れません。既存データを上書きしません:', key, error);
-    toho_storage_locked = true;
+    console.error('保存データを読み取れません。該当データは上書きしません:', key, error);
+    toho_storage_blocked_keys.add(key);
     return null;
   }
 }
 function toho_write_json(key, value) {
-  if (toho_storage_locked) return false;
+  if (toho_storage_is_blocked(key)) return false;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch (error) {
-    console.error('保存に失敗しました。進行データを削除せずに保持してください:', key, error);
+    console.error('保存に失敗しました。該当データは削除せずに保持してください:', key, error);
     return false;
   }
 }
@@ -38,12 +44,19 @@ function toho_load_meta() {
   const value = toho_read_json(TOHO_META_KEY);
   if (value === null) return JSON.parse(JSON.stringify(toho_meta_defaults));
   if (!value || typeof value !== 'object' || value.schemaVersion !== 1) {
-    toho_storage_locked = true;
-    console.error('未知の永続セーブ形式です。上書きしません。');
+    toho_storage_blocked_keys.add(TOHO_META_KEY);
+    console.error('未知の永続セーブ形式です。既存データを上書きしません。');
     return JSON.parse(JSON.stringify(toho_meta_defaults));
   }
   value.records = Object.assign({}, toho_meta_defaults.records, value.records);
+  value.achievements = Object.assign({}, toho_meta_defaults.achievements, value.achievements);
+  value.stories = Object.assign({}, toho_meta_defaults.stories, value.stories);
   value.encyclopedia = Object.assign({}, toho_meta_defaults.encyclopedia, value.encyclopedia);
+  value.lifetimeCounters = value.lifetimeCounters && typeof value.lifetimeCounters === 'object'
+    ? value.lifetimeCounters : {};
+  if (!Array.isArray(value.achievements.unlockedIds)) value.achievements.unlockedIds = [];
+  if (!Array.isArray(value.stories.unlockedIds)) value.stories.unlockedIds = [];
+  if (!Array.isArray(value.stories.readIds)) value.stories.readIds = [];
   if (!Array.isArray(value.encyclopedia.itemIds)) value.encyclopedia.itemIds = [];
   if (!Array.isArray(value.encyclopedia.enemyIds)) value.encyclopedia.enemyIds = [];
   if (!Array.isArray(value.history)) value.history = [];
@@ -52,7 +65,7 @@ function toho_load_meta() {
 const toho_meta = toho_load_meta();
 let toho_meta_dirty = false;
 function toho_save_meta() {
-  if (!toho_meta_dirty) return !toho_storage_locked;
+  if (!toho_meta_dirty) return !toho_storage_is_blocked(TOHO_META_KEY);
   if (!toho_write_json(TOHO_META_KEY, toho_meta)) return false;
   toho_meta_dirty = false;
   return true;
@@ -95,17 +108,34 @@ function toho_find_enemy(enemy) {
 }
 function toho_unlock_item(name, typeHint) {
   const entry = toho_find_item(name, typeHint);
-  if (!entry || toho_meta.encyclopedia.itemIds.includes(entry.id)) return;
+  if (!entry) return false;
+  if (toho_meta.encyclopedia.itemIds.includes(entry.id)) return true;
+
+  // 保存成功を確認してから解放を確定する。失敗時にメモリ上だけ解放済みになるのを防ぐ。
+  const previousDirty = toho_meta_dirty;
   toho_meta.encyclopedia.itemIds.push(entry.id);
   toho_meta_dirty = true;
-  toho_save_meta();
+  if (toho_save_meta()) return true;
+
+  toho_meta.encyclopedia.itemIds.pop();
+  toho_meta_dirty = previousDirty;
+  console.error('アイテム図鑑の解放情報を保存できませんでした:', entry.id, entry.name);
+  return false;
 }
 function toho_unlock_enemy(enemy) {
   const entry = toho_find_enemy(enemy);
-  if (!entry || toho_meta.encyclopedia.enemyIds.includes(entry.id)) return;
+  if (!entry) return false;
+  if (toho_meta.encyclopedia.enemyIds.includes(entry.id)) return true;
+
+  const previousDirty = toho_meta_dirty;
   toho_meta.encyclopedia.enemyIds.push(entry.id);
   toho_meta_dirty = true;
-  toho_save_meta();
+  if (toho_save_meta()) return true;
+
+  toho_meta.encyclopedia.enemyIds.pop();
+  toho_meta_dirty = previousDirty;
+  console.error('敵図鑑の解放情報を保存できませんでした:', entry.id, entry.name);
+  return false;
 }
 function toho_scan_inventory() {
   TOHO_ITEM_TYPES.forEach(function (type) {
