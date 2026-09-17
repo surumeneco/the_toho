@@ -79,4 +79,12 @@ assert.equal(vm.runInContext('toho_prepare_encyclopedia_catalog()', env), true);
 assert(env.toho_meta.encyclopedia.itemIds.includes('food:0001'));
 assert(saves > 0);
 
-console.log('PASS: authoritative encyclopedia catalog has all categories, stable IDs and inventory recovery');
+// 敵ドロップの開示判定は、同名の図鑑項目が1件でも解放済みならtrueになる。
+const knownFood = foods[0].名前;
+assert.equal(vm.runInContext(`toho_item_name_is_discovered(${JSON.stringify(knownFood)})`, env), true);
+const undiscovered = vm.runInContext('toho_item_catalog().find(x => !toho_meta.encyclopedia.itemIds.includes(x.id))', env);
+if (undiscovered) {
+  assert.equal(vm.runInContext(`toho_item_name_is_discovered(${JSON.stringify(undiscovered.name)})`, env), false);
+}
+
+console.log('PASS: authoritative encyclopedia catalog has stable IDs, inventory recovery and drop discovery lookup');
