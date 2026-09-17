@@ -26,28 +26,37 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   });
 
   async function readyAtTitle() {
-    await page.waitForFunction(() =>
-      typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
-      typeof toho_encyclopedia_storage_diagnostic === 'function' &&
-      window.__toho_app && document.querySelector('canvas') &&
-      typeof now_scene !== 'undefined' && now_scene === 'タイトル');
+    await page.waitForFunction(() => {
+      if (!(typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
+        typeof toho_encyclopedia_storage_diagnostic === 'function' &&
+        window.__toho_app && document.querySelector('canvas'))) return false;
+      const manager = window.__toho_app.rootScene;
+      if (!manager || typeof manager.getCurrentIndex !== 'function') return false;
+      const scene = manager.scenes[manager.getCurrentIndex()];
+      return !!scene && scene.label === 'タイトル';
+    });
   }
   async function snapshot(label) {
-    const value = await page.evaluate(() => ({
-      nowScene: typeof now_scene === 'undefined' ? null : now_scene,
-      tracking: !!(player && player.__toho_tracking),
-      achievementTracking: !!(player && player.__toho_achievement_tracking),
-      inventory: [
-        ['food', player.食料], ['weapon', player.武器], ['tool', player.道具], ['material', player.素材],
-      ].flatMap(([type, list]) => (Array.isArray(list) ? list : []).filter(pair => pair && pair[0] && pair[1] > 0)
-        .map(pair => ({ type, name: pair[0].名前, quantity: pair[1], resolved: !!toho_find_item(pair[0].名前, type) }))),
-      memory: JSON.parse(JSON.stringify(toho_meta.encyclopedia)),
-      diagnostic: toho_encyclopedia_storage_diagnostic(),
-      progress: localStorage.getItem('the_toho:progress:v1'),
-      meta: localStorage.getItem('the_toho:meta:v1'),
-      dedicated: localStorage.getItem('the_toho:encyclopedia:v1'),
-      probe: Array.isArray(window.__encyclopediaProbe) ? window.__encyclopediaProbe.slice() : [],
-    }));
+    const value = await page.evaluate(() => {
+      const manager = window.__toho_app.rootScene;
+      const config = manager && manager.scenes && manager.scenes[manager.getCurrentIndex()];
+      return {
+        sceneLabel: config ? config.label : null,
+        legacyNowScene: typeof now_scene === 'undefined' ? null : now_scene,
+        tracking: !!(player && player.__toho_tracking),
+        achievementTracking: !!(player && player.__toho_achievement_tracking),
+        inventory: [
+          ['food', player.食料], ['weapon', player.武器], ['tool', player.道具], ['material', player.素材],
+        ].flatMap(([type, list]) => (Array.isArray(list) ? list : []).filter(pair => pair && pair[0] && pair[1] > 0)
+          .map(pair => ({ type, name: pair[0].名前, quantity: pair[1], resolved: !!toho_find_item(pair[0].名前, type) }))),
+        memory: JSON.parse(JSON.stringify(toho_meta.encyclopedia)),
+        diagnostic: toho_encyclopedia_storage_diagnostic(),
+        progress: localStorage.getItem('the_toho:progress:v1'),
+        meta: localStorage.getItem('the_toho:meta:v1'),
+        dedicated: localStorage.getItem('the_toho:encyclopedia:v1'),
+        probe: Array.isArray(window.__encyclopediaProbe) ? window.__encyclopediaProbe.slice() : [],
+      };
+    });
     console.log(label + '=' + JSON.stringify(value));
     return value;
   }
@@ -63,8 +72,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await page.evaluate(() => {
     window.__toho_app.currentScene.flare('pointend', { pointer: { x: 540, y: 900 } });
   });
-  await page.waitForFunction(() => now_scene === 'ホーム');
+  await page.waitForFunction(() => {
+    const manager = window.__toho_app.rootScene;
+    const scene = manager.scenes[manager.getCurrentIndex()];
+    return scene && scene.label === 'ホーム';
+  });
   const afterStart = await snapshot('afterStart');
+  assert.equal(afterStart.sceneLabel, 'ホーム');
   assert.equal(afterStart.tracking, true, 'fresh Player must be tracked');
 
   await page.evaluate(() => {
@@ -103,11 +117,15 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   let acquired = false;
   for (let i = 0; i < 40; i++) {
     await sleep(250);
-    const state = await page.evaluate(() => ({
-      scene: now_scene,
-      count: [player.食料, player.武器, player.道具, player.素材].reduce((n, list) =>
-        n + (Array.isArray(list) ? list.filter(pair => pair && pair[0] && pair[1] > 0).length : 0), 0),
-    }));
+    const state = await page.evaluate(() => {
+      const manager = window.__toho_app.rootScene;
+      const config = manager.scenes[manager.getCurrentIndex()];
+      return {
+        scene: config ? config.label : null,
+        count: [player.食料, player.武器, player.道具, player.素材].reduce((n, list) =>
+          n + (Array.isArray(list) ? list.filter(pair => pair && pair[0] && pair[1] > 0).length : 0), 0),
+      };
+    });
     console.log('LOOP ' + i + ' ' + JSON.stringify(state));
     if (state.count > 0) { acquired = true; break; }
   }
