@@ -1,4 +1,4 @@
-/* v1.4.4: 図鑑で使用するカタログID・検索処理をこのモジュールに一本化する。 */
+/* v1.4.5: 図鑑で使用するカタログID・検索処理をこのモジュールに一本化する。 */
 
 function toho_build_item_catalog() {
   const entries = [];
@@ -120,6 +120,11 @@ function toho_normalize_encyclopedia_ids() {
 }
 
 function toho_prepare_encyclopedia_catalog() {
+  // 図鑑メタ自身を読み取れなかった場合、空データとして起動して上書きすることはしない。
+  if (typeof toho_storage_is_blocked === 'function' && toho_storage_is_blocked(TOHO_META_KEY)) {
+    throw new Error('図鑑の保存データを読み込めません。既存データは上書きしていません。');
+  }
+
   const missing = TOHO_ITEM_TYPES.filter(function (type) {
     return !Array.isArray(type.data()) || type.data().length === 0;
   }).map(function (type) { return type.id; });
