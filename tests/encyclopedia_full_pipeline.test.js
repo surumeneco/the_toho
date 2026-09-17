@@ -39,6 +39,7 @@ const env = {
   reload_check() { return false; },
   Dices(dice, fixed) { return { ダイス: dice, 固定値: fixed, roll() { return 0; } }; },
   get_from_name(name, items) { return items.find(item => item.名前 === name) || null; },
+  Search_scene: sceneStub,
   Toho_search_scene: sceneStub,
   Home_scene: sceneStub,
   Toho_battle_scene: sceneStub,
