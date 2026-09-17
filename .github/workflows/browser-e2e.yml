@@ -15,6 +15,7 @@ permissions:
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,13 +36,23 @@ jobs:
           cat /tmp/the_toho_http.log
           exit 1
       - name: Browser acquisition and persistence
-        run: node tests/encyclopedia_browser_e2e.js
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout --signal=TERM --kill-after=10s 150s node tests/encyclopedia_browser_e2e.js 2>&1 | tee browser-e2e.log
+      - name: Collect server log
+        if: always()
+        run: cp /tmp/the_toho_http.log browser-e2e-http.log || true
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: encyclopedia-browser-e2e
           path: |
+            browser-e2e.log
+            browser-e2e-http.log
+            browser-e2e-stage.txt
+            browser-e2e-failure.png
             browser-e2e-after-acquisition.png
             browser-e2e-after-reload.png
-          if-no-files-found: ignore
+          if-no-files-found: warn
