@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: browser-encyclopedia-e2e-${{ github.ref }}
+  # v2 isolates this hardened workflow from the legacy hung run that used the original group.
+  group: browser-encyclopedia-e2e-v2-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
