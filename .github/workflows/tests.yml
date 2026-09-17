@@ -24,6 +24,8 @@ jobs:
         run: node tests/encyclopedia_catalog_v143.test.js
       - name: Encyclopedia discovery persistence
         run: node tests/encyclopedia_runtime.test.js
+      - name: Full encyclopedia acquisition pipeline
+        run: node tests/encyclopedia_full_pipeline.test.js
       - name: Encyclopedia reload persistence
         run: node tests/encyclopedia_persistence_reload.test.js
       - name: Encyclopedia multi-tab consistency
