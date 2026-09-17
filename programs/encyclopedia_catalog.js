@@ -1,4 +1,4 @@
-/* v1.4.3: 図鑑で使用するカタログID・検索処理をこのモジュールに一本化する。 */
+/* v1.4.4: 図鑑で使用するカタログID・検索処理をこのモジュールに一本化する。 */
 
 function toho_build_item_catalog() {
   const entries = [];
@@ -82,6 +82,13 @@ toho_find_enemy = function (enemy) {
       data.体力 === enemy.体力;
   }) || null;
 };
+
+function toho_item_name_is_discovered(name) {
+  const discovered = new Set(toho_meta.encyclopedia.itemIds || []);
+  return toho_item_catalog().some(function (entry) {
+    return entry.name === name && discovered.has(entry.id);
+  });
+}
 
 function toho_normalize_encyclopedia_ids() {
   const itemCatalog = toho_build_item_catalog();
