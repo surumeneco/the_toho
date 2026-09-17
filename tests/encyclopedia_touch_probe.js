@@ -1,4 +1,4 @@
-/* Browser probe: run real Phina handlers while bypassing only DOM-to-canvas input dispatch. */
+/* Browser regression: real Phina handlers, bypassing only DOM-to-canvas input dispatch. */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
@@ -14,6 +14,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   page.on('console', msg => consoleMessages.push(msg.type() + ': ' + msg.text()));
   page.on('pageerror', error => consoleMessages.push('pageerror: ' + error.stack));
 
+  // Test-only instrumentation: expose GameApp without modifying production main.js.
   await page.route('**/programs/main.js*', async route => {
     const response = await route.fetch();
     let body = await response.text();
@@ -24,47 +25,47 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     await route.fulfill({ response, body });
   });
 
-  async function readyAtTitle() {
-    await page.waitForFunction(() => {
-      if (!(typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
-        typeof toho_encyclopedia_storage_diagnostic === 'function' &&
-        window.__toho_app && document.querySelector('canvas'))) return false;
+  async function ready() {
+    await page.waitForFunction(() =>
+      typeof toho_data_is_ready === 'function' && toho_data_is_ready() &&
+      typeof toho_encyclopedia_storage_diagnostic === 'function' &&
+      window.__toho_app && document.querySelector('canvas'));
+  }
+  async function sceneLabel() {
+    return page.evaluate(() => {
       const manager = window.__toho_app.rootScene;
-      if (!manager || typeof manager.getCurrentIndex !== 'function') return false;
-      const scene = manager.scenes[manager.getCurrentIndex()];
-      return !!scene && scene.label === 'タイトル';
+      const config = manager.scenes[manager.getCurrentIndex()];
+      return config ? config.label : null;
     });
+  }
+  async function waitScene(label) {
+    await page.waitForFunction(expected => {
+      const manager = window.__toho_app && window.__toho_app.rootScene;
+      if (!manager) return false;
+      const config = manager.scenes[manager.getCurrentIndex()];
+      return config && config.label === expected;
+    }, label);
   }
   async function snapshot(label) {
     const value = await page.evaluate(() => {
       const manager = window.__toho_app.rootScene;
-      const config = manager && manager.scenes && manager.scenes[manager.getCurrentIndex()];
-      const directMetaRead = toho_read_json(TOHO_META_KEY);
+      const config = manager.scenes[manager.getCurrentIndex()];
       const setProbe = new Set(['alpha', 'beta']);
       return {
         sceneLabel: config ? config.label : null,
-        legacyNowScene: typeof now_scene === 'undefined' ? null : now_scene,
         tracking: !!(player && player.__toho_tracking),
-        achievementTracking: !!(player && player.__toho_achievement_tracking),
         arrayFromSetProbe: Array.from(setProbe),
         spreadSetProbe: [...setProbe],
-        setSizeProbe: setProbe.size,
-        arrayFromSource: String(Array.from).slice(0, 800),
         inventory: [
           ['food', player.食料], ['weapon', player.武器], ['tool', player.道具], ['material', player.素材],
-        ].flatMap(([type, list]) => (Array.isArray(list) ? list : []).filter(pair => pair && pair[0] && pair[1] > 0)
-          .map(pair => ({ type, name: pair[0].名前, quantity: pair[1], resolved: !!toho_find_item(pair[0].名前, type) }))),
+        ].flatMap(([type, list]) => (Array.isArray(list) ? list : [])
+          .filter(pair => pair && pair[0] && pair[1] > 0)
+          .map(pair => ({ type, name: pair[0].名前, quantity: pair[1] }))),
         memory: JSON.parse(JSON.stringify(toho_meta.encyclopedia)),
-        helperUniqueItems: toho_unique_ids(toho_meta.encyclopedia.itemIds),
-        helperUniqueEnemies: toho_unique_ids(toho_meta.encyclopedia.enemyIds),
-        helperSnapshot: toho_encyclopedia_snapshot(toho_meta.encyclopedia),
-        helperDirectMeta: directMetaRead && directMetaRead.encyclopedia,
-        helperReadMeta: toho_read_meta_encyclopedia_storage(),
-        helperReadDedicated: toho_read_encyclopedia_storage(),
         diagnostic: toho_encyclopedia_storage_diagnostic(),
-        progress: localStorage.getItem('the_toho:progress:v1'),
-        meta: localStorage.getItem('the_toho:meta:v1'),
-        dedicated: localStorage.getItem('the_toho:encyclopedia:v1'),
+        rawMeta: JSON.parse(localStorage.getItem('the_toho:meta:v1') || 'null'),
+        rawDedicated: JSON.parse(localStorage.getItem('the_toho:encyclopedia:v1') || 'null'),
+        progressExists: localStorage.getItem('the_toho:progress:v1') !== null,
         probe: Array.isArray(window.__encyclopediaProbe) ? window.__encyclopediaProbe.slice() : [],
       };
     });
@@ -92,21 +93,26 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   }
 
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
-  await readyAtTitle();
+  await ready();
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await readyAtTitle();
+  await ready();
+  await waitScene('タイトル');
 
+  // The compatibility fix must restore the native iterable-capable Array.from.
+  const compatibility = await page.evaluate(() => ({
+    from: Array.from(new Set(['alpha', 'beta'])),
+    spread: [...new Set(['alpha', 'beta'])],
+  }));
+  assert.deepEqual(compatibility.from, ['alpha', 'beta']);
+  assert.deepEqual(compatibility.spread, ['alpha', 'beta']);
+
+  // Fire the actual title handler; only browser pointer dispatch is bypassed.
   await page.evaluate(() => {
     window.__toho_app.currentScene.flare('pointend', { pointer: { x: 540, y: 900 } });
   });
-  await page.waitForFunction(() => {
-    const manager = window.__toho_app.rootScene;
-    const scene = manager.scenes[manager.getCurrentIndex()];
-    return scene && scene.label === 'ホーム';
-  });
+  await waitScene('ホーム');
   const afterStart = await snapshot('afterStart');
-  assert.equal(afterStart.sceneLabel, 'ホーム');
   assert.equal(afterStart.tracking, true, 'fresh Player must be tracked');
 
   await page.evaluate(() => {
@@ -116,8 +122,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
       const resolved = toho_find_item(name, typeHint);
       const result = originalUnlock.apply(this, arguments);
       window.__encyclopediaProbe.push({
-        kind: 'unlock', name: String(name), typeHint: typeHint || null,
-        resolved: resolved ? { id: resolved.id, type: resolved.type, name: resolved.name } : null,
+        name: String(name), typeHint: typeHint || null,
+        resolved: resolved ? resolved.id : null,
         result,
       });
       return result;
@@ -126,7 +132,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   await flareButton('探索');
   let acquired = false;
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 100; i++) {
     await sleep(200);
     const state = await currentState();
     if (state.count > 0) { acquired = true; break; }
@@ -134,15 +140,59 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     else if (state.scene === '逃走') await flareButton('進む');
     else if (state.scene === 'ホーム') await flareButton('探索');
   }
+  assert(acquired, 'real exploration/Get_scene must acquire at least one item');
 
   const afterAcquisition = await snapshot('afterAcquisition');
   console.log('CONSOLE_TAIL=' + JSON.stringify(consoleMessages.slice(-40)));
-  assert(acquired, 'real exploration/Get_scene must acquire at least one item');
   assert(afterAcquisition.inventory.length > 0);
-  assert(afterAcquisition.probe.some(event => event.kind === 'unlock'), 'unlock must be called');
-  assert.deepEqual(afterAcquisition.arrayFromSetProbe, [], 'current phina Array.from behavior should reproduce the bug');
-  assert.deepEqual(afterAcquisition.spreadSetProbe, ['alpha', 'beta'], 'native Set iterator remains valid');
+  assert(afterAcquisition.probe.some(event => event.result && event.resolved), 'unlock must resolve and succeed');
+  assert(afterAcquisition.memory.itemIds.length > 0, 'memory encyclopedia must contain acquired item');
+  assert.notEqual(afterAcquisition.diagnostic.memory, '0/0');
+  assert.notEqual(afterAcquisition.diagnostic.meta, '0/0');
+  assert.notEqual(afterAcquisition.diagnostic.dedicated, '0/0');
+  assert(afterAcquisition.rawMeta.encyclopedia.itemIds.length > 0);
+  assert(afterAcquisition.rawDedicated.itemIds.length > 0);
 
+  const expectedItems = afterAcquisition.rawDedicated.itemIds.slice().sort();
+  const expectedEnemies = afterAcquisition.rawDedicated.enemyIds.slice().sort();
+
+  // Follow the actual user flow: return home and abandon the current run.
+  if (await sceneLabel() === '入手') {
+    await flareButton('帰る');
+    await waitScene('ホーム');
+  }
+  await flareButton('諦める');
+  await page.evaluate(() => {
+    const scene = window.__toho_app.currentScene;
+    const yes = scene._abandonDialog && scene._abandonDialog.elements.find(node => node && node.text === 'はい');
+    if (!yes) throw new Error('諦める確認の「はい」が見つかりません');
+    yes.flare('pointend', { pointer: { x: yes.x, y: yes.y } });
+  });
+  await waitScene('タイトル');
+
+  const afterAbandon = await snapshot('afterAbandon');
+  assert.equal(afterAbandon.progressExists, false, 'run progress should be deleted by abandon');
+  assert.deepEqual(afterAbandon.rawDedicated.itemIds.slice().sort(), expectedItems);
+  assert.deepEqual(afterAbandon.rawDedicated.enemyIds.slice().sort(), expectedEnemies);
+  assert.deepEqual(afterAbandon.rawMeta.encyclopedia.itemIds.slice().sort(), expectedItems);
+  assert.deepEqual(afterAbandon.rawMeta.encyclopedia.enemyIds.slice().sort(), expectedEnemies);
+
+  // Reload from storage and ensure encyclopedia survives with the same IDs.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ready();
+  await waitScene('タイトル');
+  const afterReload = await snapshot('afterReload');
+  assert.deepEqual(afterReload.memory.itemIds.slice().sort(), expectedItems);
+  assert.deepEqual(afterReload.memory.enemyIds.slice().sort(), expectedEnemies);
+  assert.deepEqual(afterReload.rawDedicated.itemIds.slice().sort(), expectedItems);
+  assert.deepEqual(afterReload.rawDedicated.enemyIds.slice().sort(), expectedEnemies);
+  assert.deepEqual(afterReload.rawMeta.encyclopedia.itemIds.slice().sort(), expectedItems);
+  assert.deepEqual(afterReload.rawMeta.encyclopedia.enemyIds.slice().sort(), expectedEnemies);
+  assert.notEqual(afterReload.diagnostic.memory, '0/0');
+  assert.notEqual(afterReload.diagnostic.meta, '0/0');
+  assert.notEqual(afterReload.diagnostic.dedicated, '0/0');
+
+  console.log('PASS: encyclopedia survives acquisition, abandon, and reload');
   await browser.close();
 })().catch(error => {
   console.error(error && error.stack ? error.stack : error);
