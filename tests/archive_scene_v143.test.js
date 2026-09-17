@@ -7,12 +7,19 @@ const path = require('node:path');
 function ParentArchive() {}
 ParentArchive.prototype.render = function () {
   this.parentRenderCount = (this.parentRenderCount || 0) + 1;
+  if (this.view === 'enemyDetail' && this.selected) {
+    this.scrollArea = { kind: 'drops' };
+    this.scrollRows = this.selected.data.ドロップ.map(drop => ({
+      node: { text: '・' + drop[0] + '　最大' + drop[1] },
+    }));
+  }
 };
 ParentArchive.prototype.update = function () {
   this.parentUpdateCount = (this.parentUpdateCount || 0) + 1;
 };
 
 let scans = 0;
+const discoveredNames = new Set();
 const env = {
   console, Array, Set,
   Toho_archive_scene_v14: ParentArchive,
@@ -24,6 +31,7 @@ const env = {
     };
   },
   toho_scan_inventory() { scans++; },
+  toho_item_name_is_discovered(name) { return discoveredNames.has(name); },
 };
 env.phina = {
   define(name, spec) {
@@ -63,4 +71,17 @@ scene.view = 'items';
 scene.update({});
 assert.equal(scene.parentRenderCount, 3, 'returning to list must reflect pending unlock state');
 
-console.log('PASS: v1.4.3 archive scene rescans inventory and rerenders on unlock changes');
+scene.view = 'enemyDetail';
+scene.selected = {
+  data: { ドロップ: [['鹿肉', 2], ['毛皮', 1]] },
+};
+discoveredNames.add('鹿肉');
+scene.render();
+assert.equal(scene.scrollRows[0].node.text, '・鹿肉　最大2');
+assert.equal(scene.scrollRows[1].node.text, '・？？？');
+
+discoveredNames.add('毛皮');
+scene.render();
+assert.equal(scene.scrollRows[1].node.text, '・毛皮　最大1');
+
+console.log('PASS: archive scene refreshes unlocks and masks undiscovered enemy drops');
