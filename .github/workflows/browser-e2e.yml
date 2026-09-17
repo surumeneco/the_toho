@@ -5,6 +5,10 @@ on:
     branches: ['feature/encyclopedia-persistence-debug']
   workflow_dispatch:
 
+concurrency:
+  group: browser-encyclopedia-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
