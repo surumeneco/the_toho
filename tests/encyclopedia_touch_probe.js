@@ -14,7 +14,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   page.on('console', msg => consoleMessages.push(msg.type() + ': ' + msg.text()));
   page.on('pageerror', error => consoleMessages.push('pageerror: ' + error.stack));
 
-  // Test-only instrumentation: expose GameApp without touching production source.
   await page.route('**/programs/main.js*', async route => {
     const response = await route.fetch();
     let body = await response.text();
@@ -60,6 +59,25 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     console.log(label + '=' + JSON.stringify(value));
     return value;
   }
+  async function currentState() {
+    return page.evaluate(() => {
+      const manager = window.__toho_app.rootScene;
+      const config = manager.scenes[manager.getCurrentIndex()];
+      return {
+        scene: config ? config.label : null,
+        count: [player.食料, player.武器, player.道具, player.素材].reduce((n, list) =>
+          n + (Array.isArray(list) ? list.filter(pair => pair && pair[0] && pair[1] > 0).length : 0), 0),
+      };
+    });
+  }
+  async function flareButton(text) {
+    await page.evaluate(text => {
+      const scene = window.__toho_app.currentScene;
+      const button = scene.children.find(child => child && child.text === text);
+      if (!button) throw new Error('ボタンが見つかりません: ' + text);
+      button.flare('pointend', { pointer: { x: button.x, y: button.y } });
+    }, text);
+  }
 
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await readyAtTitle();
@@ -68,7 +86,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await readyAtTitle();
   console.log('afterClear=' + JSON.stringify(await page.evaluate(() => toho_encyclopedia_storage_diagnostic())));
 
-  // Fire the actual title scene handler. Only browser pointer dispatch is bypassed.
   await page.evaluate(() => {
     window.__toho_app.currentScene.flare('pointend', { pointer: { x: 540, y: 900 } });
   });
@@ -104,30 +121,23 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
       window.__encyclopediaProbe.push({ kind: 'set_cookies', result, before, after });
       return result;
     };
-    battle_rate = 0;
   });
 
-  // Fire the real Home '探索' Button handler.
-  await page.evaluate(() => {
-    const button = window.__toho_app.currentScene.children.find(child => child && child.text === '探索');
-    if (!button) throw new Error('探索ボタンが見つかりません');
-    button.flare('pointend', { pointer: { x: button.x, y: button.y } });
-  });
+  await flareButton('探索');
 
   let acquired = false;
-  for (let i = 0; i < 40; i++) {
-    await sleep(250);
-    const state = await page.evaluate(() => {
-      const manager = window.__toho_app.rootScene;
-      const config = manager.scenes[manager.getCurrentIndex()];
-      return {
-        scene: config ? config.label : null,
-        count: [player.食料, player.武器, player.道具, player.素材].reduce((n, list) =>
-          n + (Array.isArray(list) ? list.filter(pair => pair && pair[0] && pair[1] > 0).length : 0), 0),
-      };
-    });
+  for (let i = 0; i < 80; i++) {
+    await sleep(200);
+    const state = await currentState();
     console.log('LOOP ' + i + ' ' + JSON.stringify(state));
     if (state.count > 0) { acquired = true; break; }
+    if (state.scene === '戦闘') {
+      await flareButton('逃げる');
+    } else if (state.scene === '逃走') {
+      await flareButton('進む');
+    } else if (state.scene === 'ホーム') {
+      await flareButton('探索');
+    }
   }
 
   const afterAcquisition = await snapshot('afterAcquisition');
