@@ -26,6 +26,8 @@ jobs:
         run: node tests/encyclopedia_runtime.test.js
       - name: Encyclopedia reload persistence
         run: node tests/encyclopedia_persistence_reload.test.js
+      - name: Encyclopedia multi-tab consistency
+        run: node tests/encyclopedia_multitab.test.js
       - name: Encyclopedia scene refresh
         run: node tests/archive_scene_v143.test.js
       - name: Achievement regressions
