@@ -40,11 +40,16 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
       const manager = window.__toho_app.rootScene;
       const config = manager && manager.scenes && manager.scenes[manager.getCurrentIndex()];
       const directMetaRead = toho_read_json(TOHO_META_KEY);
+      const setProbe = new Set(['alpha', 'beta']);
       return {
         sceneLabel: config ? config.label : null,
         legacyNowScene: typeof now_scene === 'undefined' ? null : now_scene,
         tracking: !!(player && player.__toho_tracking),
         achievementTracking: !!(player && player.__toho_achievement_tracking),
+        arrayFromSetProbe: Array.from(setProbe),
+        spreadSetProbe: [...setProbe],
+        setSizeProbe: setProbe.size,
+        arrayFromSource: String(Array.from).slice(0, 800),
         inventory: [
           ['food', player.食料], ['weapon', player.武器], ['tool', player.道具], ['material', player.素材],
         ].flatMap(([type, list]) => (Array.isArray(list) ? list : []).filter(pair => pair && pair[0] && pair[1] > 0)
@@ -60,8 +65,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
         progress: localStorage.getItem('the_toho:progress:v1'),
         meta: localStorage.getItem('the_toho:meta:v1'),
         dedicated: localStorage.getItem('the_toho:encyclopedia:v1'),
-        saveMetaSource: String(toho_save_meta).slice(0, 500),
-        diagnosticSource: String(toho_encyclopedia_storage_diagnostic).slice(0, 500),
         probe: Array.isArray(window.__encyclopediaProbe) ? window.__encyclopediaProbe.slice() : [],
       };
     });
@@ -93,7 +96,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
   await readyAtTitle();
-  console.log('afterClear=' + JSON.stringify(await page.evaluate(() => toho_encyclopedia_storage_diagnostic())));
 
   await page.evaluate(() => {
     window.__toho_app.currentScene.flare('pointend', { pointer: { x: 540, y: 900 } });
@@ -112,50 +114,35 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     const originalUnlock = toho_unlock_item;
     toho_unlock_item = function (name, typeHint) {
       const resolved = toho_find_item(name, typeHint);
-      const before = toho_encyclopedia_storage_diagnostic();
       const result = originalUnlock.apply(this, arguments);
-      const after = toho_encyclopedia_storage_diagnostic();
       window.__encyclopediaProbe.push({
         kind: 'unlock', name: String(name), typeHint: typeHint || null,
         resolved: resolved ? { id: resolved.id, type: resolved.type, name: resolved.name } : null,
-        result, before, after,
+        result,
       });
-      return result;
-    };
-    const originalSet = set_cookies;
-    set_cookies = function () {
-      const before = toho_encyclopedia_storage_diagnostic();
-      const result = originalSet.apply(this, arguments);
-      const after = toho_encyclopedia_storage_diagnostic();
-      window.__encyclopediaProbe.push({ kind: 'set_cookies', result, before, after });
       return result;
     };
   });
 
   await flareButton('探索');
-
   let acquired = false;
   for (let i = 0; i < 80; i++) {
     await sleep(200);
     const state = await currentState();
-    console.log('LOOP ' + i + ' ' + JSON.stringify(state));
     if (state.count > 0) { acquired = true; break; }
-    if (state.scene === '戦闘') {
-      await flareButton('逃げる');
-    } else if (state.scene === '逃走') {
-      await flareButton('進む');
-    } else if (state.scene === 'ホーム') {
-      await flareButton('探索');
-    }
+    if (state.scene === '戦闘') await flareButton('逃げる');
+    else if (state.scene === '逃走') await flareButton('進む');
+    else if (state.scene === 'ホーム') await flareButton('探索');
   }
 
   const afterAcquisition = await snapshot('afterAcquisition');
-  console.log('CONSOLE_TAIL=' + JSON.stringify(consoleMessages.slice(-80)));
+  console.log('CONSOLE_TAIL=' + JSON.stringify(consoleMessages.slice(-40)));
   assert(acquired, 'real exploration/Get_scene must acquire at least one item');
   assert(afterAcquisition.inventory.length > 0);
   assert(afterAcquisition.probe.some(event => event.kind === 'unlock'), 'unlock must be called');
+  assert.deepEqual(afterAcquisition.arrayFromSetProbe, [], 'current phina Array.from behavior should reproduce the bug');
+  assert.deepEqual(afterAcquisition.spreadSetProbe, ['alpha', 'beta'], 'native Set iterator remains valid');
 
-  // Do not assert persistence here until helper-state divergence is diagnosed.
   await browser.close();
 })().catch(error => {
   console.error(error && error.stack ? error.stack : error);
