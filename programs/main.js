@@ -154,12 +154,14 @@ function start_toho_game() {
 }
 
 function show_data_load_error(error) {
-  console.error('ゲームデータの読み込みに失敗したため起動を中止しました。', error);
+  console.error('ゲームデータまたは保存データの読み込みに失敗したため起動を中止しました。', error);
   const failed = toho_data_failed_keys();
+  const detail = error && error.message ? String(error.message) : '';
   const notice = document.createElement('div');
   notice.style.cssText = 'max-width:720px;padding:32px;color:white;background:#1e1e1e;font-family:sans-serif;line-height:1.7;text-align:center;';
-  notice.textContent = 'ゲームデータの読み込みに失敗しました。ページを再読み込みしてください。' +
-    (failed.length ? ' (' + failed.join(', ') + ')' : '');
+  notice.textContent = failed.length
+    ? 'ゲームデータの読み込みに失敗しました。ページを再読み込みしてください。 (' + failed.join(', ') + ')'
+    : (detail || '保存データの読み込みに失敗しました。ページを再読み込みしてください。');
   document.body.appendChild(notice);
 }
 
