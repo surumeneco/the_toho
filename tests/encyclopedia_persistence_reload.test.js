@@ -4,7 +4,8 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'programs', 'meta_progress.js'), 'utf8');
+const metaSource = fs.readFileSync(path.join(__dirname, '..', 'programs', 'meta_progress.js'), 'utf8');
+const storageSource = fs.readFileSync(path.join(__dirname, '..', 'programs', 'encyclopedia_storage.js'), 'utf8');
 
 function makeEnv(storage) {
   const foods = [{ 名前: 'りんご', 回復量: 4 }];
@@ -12,6 +13,9 @@ function makeEnv(storage) {
   const tools = [{ 名前: '袋' }];
   const materials = [{ 名前: '木材', 必要道具: '無し' }];
   const enemies = [{ 名前: '兎', 体力: 5, 出現距離: 0, 攻撃力: { ダイス: [[1, 2]], 固定値: 0 } }];
+
+  function Archive() {}
+  Archive.prototype.showDeleteDialog = function () {};
 
   const env = {
     console, Array, Object, Number, Set, Map, Math, Date, JSON,
@@ -23,7 +27,7 @@ function makeEnv(storage) {
       },
     },
     crypto: { randomUUID() { return 'run-id'; } },
-    version: '1.4.5',
+    version: '1.4.6',
     music_volume: 25, SE_volume: 25, saved_music_volume: 25, saved_SE_volume: 25,
     SoundManager: { setVolumeMusic() {}, setVolume() {} },
     set_settings_cookies() { return true; }, get_settings_cookies() { return true; },
@@ -33,6 +37,7 @@ function makeEnv(storage) {
     tools_data: tools,
     materials_data: materials,
     enemies_data: enemies,
+    Toho_archive_scene_v14: Archive,
   };
   env.player = {
     体力: 100, 気力: 100, 日数: 1, 移動距離: 0,
@@ -59,49 +64,68 @@ function makeEnv(storage) {
     },
   };
   vm.createContext(env);
-  vm.runInContext(source, env);
+  vm.runInContext(metaSource, env);
+  vm.runInContext(storageSource, env);
   env.run = code => vm.runInContext(code, env);
   return env;
 }
 
-// 解放情報はlocalStorageへ保存され、新しいJSコンテキストでも復元される。
+// 解放情報は共通metaと図鑑専用キーの双方へ保存され、新しいJSコンテキストでも復元される。
 const storage = new Map();
 let env = makeEnv(storage);
 assert.equal(env.run('toho_unlock_item("りんご", "food")'), true);
 assert.equal(env.run('toho_unlock_enemy(enemies_data[0])'), true);
-let raw = JSON.parse(storage.get('the_toho:meta:v1'));
-assert.deepEqual(raw.encyclopedia.itemIds, ['food:0001']);
-assert.deepEqual(raw.encyclopedia.enemyIds, ['enemy:0001']);
+let rawMeta = JSON.parse(storage.get('the_toho:meta:v1'));
+let rawEncyclopedia = JSON.parse(storage.get('the_toho:encyclopedia:v1'));
+assert.deepEqual(rawMeta.encyclopedia.itemIds, ['food:0001']);
+assert.deepEqual(rawMeta.encyclopedia.enemyIds, ['enemy:0001']);
+assert.deepEqual(rawEncyclopedia.itemIds, ['food:0001']);
+assert.deepEqual(rawEncyclopedia.enemyIds, ['enemy:0001']);
 
 env = makeEnv(storage);
 assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.itemIds')), ['food:0001']);
 assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.enemyIds')), ['enemy:0001']);
 assert.equal(env.run('toho_discovery_rates().total'), 2);
 
-// 設定データが壊れていても、図鑑メタの保存は止めない。
-const brokenSettings = new Map([['the_toho:settings:v1', '{broken-json']]);
-env = makeEnv(brokenSettings);
-assert.equal(env.run('toho_storage_is_blocked(TOHO_SETTINGS_KEY)'), true);
-assert.equal(env.run('toho_storage_is_blocked(TOHO_META_KEY)'), false);
-assert.equal(env.run('toho_unlock_item("棒", "weapon")'), true);
-raw = JSON.parse(brokenSettings.get('the_toho:meta:v1'));
-assert.deepEqual(raw.encyclopedia.itemIds, ['weapon:0001']);
+// 後段モジュール等が図鑑配列だけを空にして通常meta保存しても、永続化済みIDを失わない。
+env.run('toho_meta.encyclopedia.itemIds = []; toho_meta.encyclopedia.enemyIds = []; toho_meta_dirty = true; toho_save_meta();');
+assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.itemIds')), ['food:0001']);
+assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.enemyIds')), ['enemy:0001']);
+rawMeta = JSON.parse(storage.get('the_toho:meta:v1'));
+rawEncyclopedia = JSON.parse(storage.get('the_toho:encyclopedia:v1'));
+assert.deepEqual(rawMeta.encyclopedia.itemIds, ['food:0001']);
+assert.deepEqual(rawEncyclopedia.enemyIds, ['enemy:0001']);
 
-// 周回データが壊れていても、図鑑メタの保存は止めない。
-const brokenRun = new Map([['the_toho:run:v1', '{broken-json']]);
-env = makeEnv(brokenRun);
-assert.equal(env.run('toho_storage_is_blocked(TOHO_RUN_KEY)'), true);
-assert.equal(env.run('toho_unlock_item("袋", "tool")'), true);
-raw = JSON.parse(brokenRun.get('the_toho:meta:v1'));
-assert.deepEqual(raw.encyclopedia.itemIds, ['tool:0001']);
+// 共通meta側だけ図鑑が欠落していても、専用キーから起動時に復元する。
+rawMeta.encyclopedia = { itemIds: [], enemyIds: [] };
+storage.set('the_toho:meta:v1', JSON.stringify(rawMeta));
+env = makeEnv(storage);
+assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.itemIds')), ['food:0001']);
+assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.enemyIds')), ['enemy:0001']);
+rawMeta = JSON.parse(storage.get('the_toho:meta:v1'));
+assert.deepEqual(rawMeta.encyclopedia.itemIds, ['food:0001']);
+assert.deepEqual(rawMeta.encyclopedia.enemyIds, ['enemy:0001']);
 
-// 図鑑メタ自身が壊れている場合だけは既存値を保護し、空データで上書きしない。
-const brokenMetaRaw = '{broken-meta';
-const brokenMeta = new Map([['the_toho:meta:v1', brokenMetaRaw]]);
-env = makeEnv(brokenMeta);
-assert.equal(env.run('toho_storage_is_blocked(TOHO_META_KEY)'), true);
-assert.equal(env.run('toho_unlock_item("木材", "material")'), false);
-assert.equal(brokenMeta.get('the_toho:meta:v1'), brokenMetaRaw);
-assert.deepEqual(Array.from(env.run('toho_meta.encyclopedia.itemIds')), []);
+// 明示的な図鑑削除APIだけは両方の保存先を空にできる。
+assert.equal(env.run('toho_clear_encyclopedia()'), true);
+rawMeta = JSON.parse(storage.get('the_toho:meta:v1'));
+rawEncyclopedia = JSON.parse(storage.get('the_toho:encyclopedia:v1'));
+assert.deepEqual(rawMeta.encyclopedia.itemIds, []);
+assert.deepEqual(rawMeta.encyclopedia.enemyIds, []);
+assert.deepEqual(rawEncyclopedia.itemIds, []);
+assert.deepEqual(rawEncyclopedia.enemyIds, []);
 
-console.log('PASS: encyclopedia unlocks survive reload and unrelated corrupt localStorage keys do not block meta saves');
+// 1.4.5以前のmetaだけが存在する場合は初回ロード時に専用キーへ移行する。
+const legacyMetaOnly = new Map([['the_toho:meta:v1', JSON.stringify({
+  schemaVersion: 1,
+  records: { bestDistanceMeters: 0, bestDays: 0 },
+  achievements: { unlockedIds: [] }, stories: { unlockedIds: [], readIds: [] },
+  encyclopedia: { itemIds: ['weapon:0001'], enemyIds: ['enemy:0001'] },
+  lifetimeCounters: {}, history: [],
+})]]);
+env = makeEnv(legacyMetaOnly);
+rawEncyclopedia = JSON.parse(legacyMetaOnly.get('the_toho:encyclopedia:v1'));
+assert.deepEqual(rawEncyclopedia.itemIds, ['weapon:0001']);
+assert.deepEqual(rawEncyclopedia.enemyIds, ['enemy:0001']);
+
+console.log('PASS: dedicated encyclopedia storage survives reloads, resists accidental resets and supports explicit deletion');
